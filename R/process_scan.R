@@ -1,6 +1,91 @@
-library(BRAIN)
-library(OrgMassSpecR)
-options(stringsAsFactors = F)
+#' Converting multi-charged oligonucleotide mass spectra to true molecular weight scale
+#'
+#' The function determines charges state based on peak spacing. It also creates a deconvoluted molecular weight spectra by combining multiple charge state of the same isotopic species.
+#' 
+#' @author Youzhong Liu, \email{YLiu186@ITS.JNJ.com}
+#'
+#' @export
+#'
+##################################
+######## Main Function ###########
+##################################
+
+process_scan<-function(test.scan, polarity = c("Positive", "Negative"),  MSMS = F, baseline = 100,
+                       min_charge = 3, max_charge = 12, min_mz = 500, max_mz = 1500, min_mw = 4000, max_mw = 12000, 
+                       mz_error = 0.02, mw_gap = 5){
+  
+  options(stringsAsFactors = F)
+  if (min_charge>max_charge){min_charge = max_charge-1}
+  
+  ref_charge_high = c()
+  ref_charge_low = c()
+  if (max_charge>=3){ref_charge_high = max(3, min_charge):max_charge}
+  if (min_charge<3){ref_charge_low = min_charge:2}
+  
+  scan0 = test.scan
+  if (is.null(scan0)){scan0 = matrix(0,2,2)}
+  if (nrow(scan0)<=5){scan0 = matrix(0,2,2)}
+  
+  scan_processed_aggregated = c()
+  scan_processed = c()
+  
+  # Pre-processing the scan:
+  
+  if (nrow(scan0)>5){
+    scan0 = cbind(scan0[,1], scan0[,2])
+    scan0 = apply(scan0, 2, as.numeric)
+    scan0 = data.frame(scan0)
+    colnames(scan0) = c("Mass", "Response")
+    scan0 = scan0[scan0$Response>baseline & scan0$Mass>=min_mz & scan0$Mass<=max_mz,,drop =FALSE]
+  }
+  
+  # High charge state processing:
+  
+  if (nrow(scan0)>5 & length(ref_charge_high)>0){
+    scan1 = process_scan_high_charge_bis(scan0, ref_charge_high, mz_error)
+    scan_processed = rbind.data.frame(scan_processed, scan1)
+    scan0 = scan0[!(scan0$Mass %in% scan_processed$Mass),,drop = FALSE] # Filter original scan
+  }
+  
+  # Low charge state processing:
+  
+  if (nrow(scan0)>5 & length(ref_charge_low)>0){
+    scan1 = process_scan_low_charge(scan0, ref_charge_low, mz_error, baseline)
+    scan_processed = rbind.data.frame(scan_processed, scan1)
+  }
+  
+  # Construct and filter scan:
+  # Minimum 2 isotopic species
+  
+  if (is.null(scan_processed)){scan_processed = matrix(0,2,2)}
+  
+  if (nrow(scan_processed)>5){
+    
+    if (polarity == "Positive"){scan_processed$MW = scan_processed$Mass*scan_processed$z - scan_processed$z*1.00726}
+    if (polarity == "Negative"){scan_processed$MW = scan_processed$Mass*scan_processed$z + scan_processed$z*1.00726}
+    scan_processed = scan_processed[order(scan_processed$MW),,drop=FALSE]
+    scan_processed = scan_processed[which(scan_processed$MW>=min_mw & scan_processed$MW<=max_mw),,drop=FALSE]
+    
+    if (nrow(scan_processed)>5){
+      
+      mmw_cutted = cut_mmw_list(scan_processed$MW, scan_processed$Response, 1)
+      scan_processed$tmp_feature = mmw_cutted$id
+      scan_processed$MW = mmw_cutted$mw
+      
+      if (MSMS){frequent.feature = as.numeric(which(table(scan_processed$tmp_feature)>=1))}
+      if (!MSMS){frequent.feature = as.numeric(which(table(scan_processed$tmp_feature)>1))}
+      scan_processed = scan_processed[which(scan_processed$tmp_feature %in% frequent.feature),,drop=FALSE]
+      
+      if (nrow(scan_processed)>3){
+        
+        scan_processed_aggregated = process_aggregation(scan_processed)
+        scan_processed_aggregated$Envelop = cut_mmw_list1(scan_processed_aggregated$MW, scan_processed_aggregated$Response, mw_gap)$id
+      }}
+  }
+  
+  return(scan_processed_aggregated)
+}
+
 
 ###############################
 # Find high charge state peaks#
@@ -16,7 +101,7 @@ process_scan_high_charge_bis<-function(scan1, ref_charge, mz_error){
   
   exp_mz = scan1[,1]
   
-  # Validate charge state by looking at 3 neighboring peak before/after:
+  # Validate charge state by looking at 0.5 Da before/after:
   
   scan2 = c()
   
@@ -175,7 +260,7 @@ process_aggregation<-function(scan_processed){
 }
 
 #######################
-### Helper functions###
+### Other functions####
 #######################
 
 cut_mmw_list<-function(mwlist, intlist, mw_window){

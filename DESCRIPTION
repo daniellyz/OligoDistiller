@@ -5,8 +5,8 @@ Version: 0.1
 Date: 2022-10-01
 Author: Youzhong LIU <liu-youzhong@hotmail.com>
 Maintainer: Youzhong LIU <liu-youzhong@hotmail.com>
-Depends: R (>= 3.6), shiny
-Imports: BRAIN, OrgMassSpecR, tidyverse, MSnbase, tools, plyr, stringr, shinyjs, V8, pracma, DT, plotly
+Depends: R (>= 3.6), shiny, tidyverse
+Imports: BRAIN, OrgMassSpecR, tibble, purrr, tidyr, dplyr, MSnbase, tools, plyr, stringr, shinyjs, V8, pracma, DT, plotly
 Description: Functions and webtool for metabolite/impurity profiling of oligonucleotide therapeutics
 License: GNU
 LazyData: true

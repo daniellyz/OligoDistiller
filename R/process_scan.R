@@ -312,7 +312,7 @@ cut_mmw_list1<-function(mwlist, intlist, mw_window){
     best_mw = mwlist[ttt[which.max(intlist[ttt])]]
     max_mw = max(mwlist[ttt])
     
-    if ((mwlist[k] - min_mw > mw_window & mwlist[k] - best_mw > mw_window/2) || (mwlist[k] - max_mw >=1.2)){
+    if ((mwlist[k] - min_mw > 2*mw_window & mwlist[k] - best_mw > mw_window) || (mwlist[k] - max_mw >1.1)){
       mw_feature[t0:(k-1)] = f
       mw_avg[t0:(k-1)] = round(best_mw, 4)
       f = f + 1

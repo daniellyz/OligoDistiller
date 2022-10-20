@@ -115,7 +115,9 @@ shinyUI(navbarPage("OligoDistiller V.01",
                  downloadButton("downloadFeature", "Download"),
                  br(),
                  br(),
-                 plotlyOutput("DisplayRawAndReconstructed", height = 800, width = 800),
+                 plotlyOutput("DisplayRaw", height = 400, width = 600),
+                 br(),
+                 plotlyOutput("DisplayReconstructed", height = 400, width = 600),
                  br()
         )
 ))

@@ -166,7 +166,6 @@ shinyServer(function(input, output,clientData, session){
     updateTextAreaInput(session, "blank_file1", value = fileText)
   })  
   
-  
   process <- eventReactive(input$goButton,{
 
     results = NULL
@@ -188,7 +187,7 @@ shinyServer(function(input, output,clientData, session){
       baseline = input$baseline
       mz_error = input$mz_error
       mw_gap = input$mw_gap
-      ntheo = mw_gap + 2 # Number of theoritical fragment set a bit higher than mw gap
+      ntheo = mw_gap + 2 # Number of theoretical fragment set a bit higher than mw gap
       
       scan.deconvoluted = process_scan(scan, polarity = polarity, baseline = baseline, 
                 MSMS = msms, min_charge = charge_range[1], max_charge = charge_range[2], 
@@ -352,7 +351,7 @@ shinyServer(function(input, output,clientData, session){
     }
   )
   
-  output$DisplayRawAndReconstructed <- renderPlotly({
+  output$DisplayRaw <- renderPlotly({
     results <- process()$results2
     if (!is.null(results)) {
       test.scan <- read_MS()$query_spectrum
@@ -362,18 +361,10 @@ shinyServer(function(input, output,clientData, session){
         polarity <- "Positive"
       }
       ntheo <- input$mw_gap + 2
-      if (input$OptionAnnotation == "T") {
-        mode <- "targeted"
-      }
-      if (input$OptionAnnotation == "TDB") {
-        mode <- "targeted"
-      }
-      if (input$OptionAnnotation == "UB") {
-        mode <- "untargeted"
-      }
-      if (input$OptionAnnotation == "UP") {
-        mode <- "untargeted"
-      }
+      if (input$OptionAnnotation == "T") {mode <- "targeted"}
+      if (input$OptionAnnotation == "TDB") {mode <- "targeted"}
+      if (input$OptionAnnotation == "UB") {mode <- "untargeted"}
+      if (input$OptionAnnotation == "UP") {mode <- "untargeted"}
       
       yyy <- reconstruct_scan_annotated(test.scan, results,
                                         polarity = polarity, baseline = input$baseline,
@@ -383,7 +374,7 @@ shinyServer(function(input, output,clientData, session){
       reconstructed_sp <- yyy$reconstructed_scan
       idx <- input$table2_rows_selected
       
-      p_raw <- p_reconstructed <- NULL
+      p_raw  <- NULL
       
       orig_recons_max_intensity <- max(c(original_sp$I, reconstructed_sp$I), na.rm = TRUE)
       
@@ -398,13 +389,14 @@ shinyServer(function(input, output,clientData, session){
         max_y <- max(y) * 1.2
         
         p_raw <- plot_ly(source = "p_raw") %>%
-          add_segments(x = ~x, xend = ~x, y = ~0, yend = ~y, type = "scatter", mode = "lines", name = "Original spectrum") %>%
+          add_segments(x = ~x, xend = ~x, y = ~0, yend = ~y, type = "scatter", mode = "lines", name = "Original spectrum", line = list(color = c("darkblue"))) %>%
           layout(
             xaxis = list(zeroline = FALSE, title = "m/z", range = c(min_x, max_x)),
             yaxis = list(title = "Normalized intensity", range = c(0, max_y))
           )
         
         # add charge state text annotation for the raw plot
+        
         if (length(idx) == 1) {
           VT <- which(original_sp$labels == results$feature$FEATURE[idx])
           if (length(VT) > 0) {
@@ -422,6 +414,36 @@ shinyServer(function(input, output,clientData, session){
           }
         }
       }
+      p_raw
+    }
+  })
+  
+  output$DisplayReconstructed <- renderPlotly({
+    results <- process()$results2
+    if (!is.null(results)) {
+      test.scan <- read_MS()$query_spectrum
+      polarity <- "Negative"
+      is_negative <- input$polarity
+      if (!is_negative) {
+        polarity <- "Positive"
+      }
+      ntheo <- input$mw_gap + 2
+      if (input$OptionAnnotation == "T") {mode <- "targeted"}
+      if (input$OptionAnnotation == "TDB") {mode <- "targeted"}
+      if (input$OptionAnnotation == "UB") {mode <- "untargeted"}
+      if (input$OptionAnnotation == "UP") {mode <- "untargeted"}
+      
+      yyy <- reconstruct_scan_annotated(test.scan, results,
+                                        polarity = polarity, baseline = input$baseline,
+                                        mode = mode, mz_error = input$mz_error, ntheo = ntheo
+      )
+      original_sp <- yyy$original_scan
+      reconstructed_sp <- yyy$reconstructed_scan
+      idx <- input$table2_rows_selected
+      
+      p_reconstructed <- NULL
+      
+      orig_recons_max_intensity <- max(c(original_sp$I, reconstructed_sp$I), na.rm = TRUE)
       
       if (!is.null(reconstructed_sp)) {
         x <- reconstructed_sp[, 1]
@@ -435,7 +457,7 @@ shinyServer(function(input, output,clientData, session){
         max_y <- max(y) * 1.2
         
         p_reconstructed <- plot_ly(source = "p_reconstructed") %>%
-          add_segments(x = ~x, xend = ~x, y = ~0, yend = ~y, type = "scatter", mode = "lines", name = "Reconstructed spectrum") %>%
+          add_segments(x = ~x, xend = ~x, y = ~0, yend = ~y, type = "scatter", mode = "lines", name = "Reconstructed spectrum", line = list(color = c("brown"))) %>%
           layout(
             xaxis = list(zeroline = FALSE, title = "m/z", range = c(min_x, max_x)),
             yaxis = list(title = "Normalized intensity", range = c(0, max_y))
@@ -460,21 +482,8 @@ shinyServer(function(input, output,clientData, session){
         }
       }
       
-      if (!is.null(p_raw) & !is.null(p_reconstructed)){
-        subplot(      
-          p_raw,
-          p_reconstructed,
-          nrows = 2,
-          titleY=TRUE, titleX=TRUE,
-          shareY = TRUE, shareX = TRUE
-        )
-      } else if (!is.null(p_raw)) {
-        p_raw %>% layout(title = "Raw spectrum")
-      } else p_reconstructed %>% layout(title = "Reconstructed spectrum")
-    }
-  })
-  
-  
-  
+      p_reconstructed
+      }
+    })
   
 })

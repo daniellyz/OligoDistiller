@@ -268,9 +268,14 @@ brain_from_pointless <- function(type, mass, ntheo = 12) {
   if (any(!is.numeric(mass), length(mass) > 1)) stop("The supplied mass vector should be a scalar")
   L <- length(mass)
   
-  param_file <- paste0("params", type, ".rds")
-  if (!file.exists(param_file)) stop("The file with model parameters could not be find.")
-  model <- readRDS(param_file)
+  if (type == "DNA"){
+    data(DNA)
+    model = DNA
+  }
+  if (type == "RNA"){
+    data(RNA)
+    model = RNA
+  }
   
   index <- model$range[1] <= mass & mass <= model$range[2]
   if (!index) stop("The supplied mass falls beyond the range of the predictive model; the isotope distribution cannot be predicted.")

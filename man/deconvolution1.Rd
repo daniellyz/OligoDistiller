@@ -12,9 +12,7 @@ deconvolution1(
   expected_charge_range,
   matching_mass_accuracy,
   noise_threshold,
-  extraction_mass_accuracy = 50,
-  deduplicate_fun = "max",
-  proton_mass = 1.007276466621
+  deduplicate_fun
 )
 }
 \arguments{
@@ -24,11 +22,9 @@ deconvolution1(
 
 \item{expected_charge_range}{Numeric, which charge state should be analysed? e.g. 5:11}
 
-\item{matching_mass_accuracy}{Numeric, relative (in ppm) mass tolerance for assigning observed peaks to theoretical peaks}
+\item{matching_mass_accuracy}{Numeric, relative (in Da) mass tolerance for assigning observed peaks to theoretical peaks}
 
 \item{noise_threshold}{Numeric, keep for the analysis only those peaks with intensities greater or equal than this threshold}
-
-\item{extraction_mass_accuracy}{Numeric, 50 by default. mass tolerance (in ppm) for isotopic peak cluster extraction from the entire mass spectrum}
 
 \item{deduplicate_fun}{Character, "max" by default. How to deduplicate multiple observed peaks assigned to one theoretical peak - "max" or "sum"}
 

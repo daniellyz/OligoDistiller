@@ -340,7 +340,7 @@ shinyServer(function(input, output,clientData, session){
   })
 
   output$blank_message1<-renderText({process()$message})
-
+  
   output$table1 <- renderDataTable({
     
     results_table1 = NULL
@@ -350,6 +350,12 @@ shinyServer(function(input, output,clientData, session){
       results_table1 = datatable(results1, escape=rep(FALSE, ncol(results1)), rownames = F)
     }
     return(results_table1)
+  })
+  
+  table1_proxy <- dataTableProxy("table1")
+  
+  observeEvent(input$clearRowSelection, {
+    table1_proxy %>% selectRows(NULL)
   })
   
   output$downloadScan <- downloadHandler(

@@ -351,7 +351,7 @@ shinyServer(function(input, output,clientData, session){
     }
   )
   
-  output$DisplayRaw <- renderPlotly({
+  output$DisplayRawAndReconstructed <- renderPlotly({
     results <- process()$results2
     if (!is.null(results)) {
       test.scan <- read_MS()$query_spectrum
@@ -374,22 +374,22 @@ shinyServer(function(input, output,clientData, session){
       reconstructed_sp <- yyy$reconstructed_scan
       idx <- input$table2_rows_selected
       
-      p_raw  <- NULL
+      p_raw <- p_reconstructed <- NULL
       
       orig_recons_max_intensity <- max(c(original_sp$I, reconstructed_sp$I), na.rm = TRUE)
       
       if (!is.null(original_sp)) {
-        x <- original_sp[, 1]
+        x_orig <- original_sp[, 1]
         
         # normalize intensity to compare the original spec with the reconstructed spectrum 
         # (divide by the highest peak)
-        y <- original_sp[, 2] / orig_recons_max_intensity
+        y_orig <- original_sp[, 2] / orig_recons_max_intensity
         min_x <- input$mz_range[1] * 0.9
         max_x <- input$mz_range[2] * 1.1
-        max_y <- max(y) * 1.2
-        
+        max_y <- max(y_orig) * 1.2
+
         p_raw <- plot_ly(source = "p_raw") %>%
-          add_segments(x = ~x, xend = ~x, y = ~0, yend = ~y, type = "scatter", mode = "lines", name = "Original spectrum", line = list(color = c("darkblue"))) %>%
+          add_segments(x = ~x_orig, xend = ~x_orig, y = ~0, yend = ~y_orig, type = "scatter", mode = "lines", name = "Original spectrum", line = list(color = c("darkblue"))) %>%
           layout(
             xaxis = list(zeroline = FALSE, title = "m/z", range = c(min_x, max_x)),
             yaxis = list(title = "Normalized intensity", range = c(0, max_y))
@@ -401,8 +401,8 @@ shinyServer(function(input, output,clientData, session){
           VT <- which(original_sp$labels == results$feature$FEATURE[idx])
           if (length(VT) > 0) {
             charge_anno <- list(
-              x = x[VT],
-              y = y[VT],
+              x = x_orig[VT],
+              y = y_orig[VT],
               text = paste0("<b>", original_sp[VT, 4], "</b>"),
               xref = "x",
               yref = "y",
@@ -414,50 +414,20 @@ shinyServer(function(input, output,clientData, session){
           }
         }
       }
-      p_raw
-    }
-  })
-  
-  output$DisplayReconstructed <- renderPlotly({
-    results <- process()$results2
-    if (!is.null(results)) {
-      test.scan <- read_MS()$query_spectrum
-      polarity <- "Negative"
-      is_negative <- input$polarity
-      if (!is_negative) {
-        polarity <- "Positive"
-      }
-      ntheo <- input$mw_gap + 2
-      if (input$OptionAnnotation == "T") {mode <- "targeted"}
-      if (input$OptionAnnotation == "TDB") {mode <- "targeted"}
-      if (input$OptionAnnotation == "UB") {mode <- "untargeted"}
-      if (input$OptionAnnotation == "UP") {mode <- "untargeted"}
-      
-      yyy <- reconstruct_scan_annotated(test.scan, results,
-                                        polarity = polarity, baseline = input$baseline,
-                                        mode = mode, mz_error = input$mz_error, ntheo = ntheo
-      )
-      original_sp <- yyy$original_scan
-      reconstructed_sp <- yyy$reconstructed_scan
-      idx <- input$table2_rows_selected
-      
-      p_reconstructed <- NULL
-      
-      orig_recons_max_intensity <- max(c(original_sp$I, reconstructed_sp$I), na.rm = TRUE)
-      
+ 
       if (!is.null(reconstructed_sp)) {
-        x <- reconstructed_sp[, 1]
+        x_recon <- reconstructed_sp[, 1]
         
         # normalize intensity to compare the original spec with the reconstructed spectrum 
         # (divide by the highest peak)
-        y <- reconstructed_sp[, 2] / orig_recons_max_intensity
+        y_recon <- reconstructed_sp[, 2] / orig_recons_max_intensity
         
         min_x <- input$mz_range[1] * 0.9
         max_x <- input$mz_range[2] * 1.1
-        max_y <- max(y) * 1.2
+        max_y <- max(y_recon) * 1.2
         
         p_reconstructed <- plot_ly(source = "p_reconstructed") %>%
-          add_segments(x = ~x, xend = ~x, y = ~0, yend = ~y, type = "scatter", mode = "lines", name = "Reconstructed spectrum", line = list(color = c("brown"))) %>%
+          add_segments(x = ~x_recon, xend = ~x_recon, y = ~0, yend = ~y_recon, type = "scatter", mode = "lines", name = "Reconstructed spectrum", line = list(color = c("brown"))) %>%
           layout(
             xaxis = list(zeroline = FALSE, title = "m/z", range = c(min_x, max_x)),
             yaxis = list(title = "Normalized intensity", range = c(0, max_y))
@@ -468,8 +438,8 @@ shinyServer(function(input, output,clientData, session){
           VT <- which(reconstructed_sp$labels == results$feature$FEATURE[idx])
           if (length(VT) > 0) {
             charge_anno <- list(
-              x = x[VT],
-              y = y[VT],
+              x = x_recon[VT],
+              y = y_recon[VT],
               text = paste0("<b>", reconstructed_sp[VT, 4], "</b>"),
               xref = "x",
               yref = "y",
@@ -482,8 +452,16 @@ shinyServer(function(input, output,clientData, session){
         }
       }
       
-      p_reconstructed
-      }
-    })
-  
+      if (!is.null(p_raw) & !is.null(p_reconstructed)){
+        subplot(      
+          p_raw,
+          p_reconstructed,
+          shareX = TRUE, 
+          nrows = 2
+          )
+      } else if (!is.null(p_raw)) {
+        p_raw %>% layout(title = "Raw spectrum")
+      } else p_reconstructed %>% layout(title = "Reconstructed spectrum")
+    }
+  })
 })

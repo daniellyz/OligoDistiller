@@ -101,6 +101,7 @@ shinyUI(navbarPage("OligoDistiller V.01",
                 dataTableOutput("table1"),
                 br(),
                 downloadButton("downloadScan", "Download"),
+                actionButton("clearRowSelection", "Clear row selection"),
                 br(),
                 br(),
                 plotlyOutput("DisplayDeconvoluted", height = 400, width = 800)

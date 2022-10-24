@@ -192,7 +192,7 @@ shinyServer(function(input, output,clientData, session){
       scan.deconvoluted = process_scan(scan, polarity = polarity, baseline = baseline, 
                 MSMS = msms, min_charge = charge_range[1], max_charge = charge_range[2], 
                 min_mz = mz_range[1], max_mz = mz_range[2], min_mw = mw_range[1], max_mw = mw_range[2] , 
-                mz_error = 0.01, mw_gap = mw_gap)
+                mz_error = mz_error, mw_gap = mw_gap)
       scan.deconvoluted.annotated = NULL
       
       if (input$OptionAnnotation == "TDB"){

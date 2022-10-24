@@ -5,9 +5,10 @@
 #' @author Youzhong Liu, \email{YLiu186@ITS.JNJ.com}
 #' 
 #' @importFrom BRAIN useBRAIN
+#' @importFrom stringr str_detect str_replace_all
 #' @export
 #' 
-reconstruct_scan_annotated<-function(scan0, scans.deconvoluted.annotated, polarity = "Negative", baseline = 100,
+reconstruct_scan_annotated<-function(scan0, scans.deconvoluted.annotated, polarity = "Negative",
                   mode = c("targeted","untargeted"), mz_error = 0.01, bblock = "C21 H26.4 O13.2 N7.3 P2 S0.4 F0.9", ntheo = 12){
   
   raw_scan = data.frame(scan0)
@@ -22,134 +23,82 @@ reconstruct_scan_annotated<-function(scan0, scans.deconvoluted.annotated, polari
   reconstructed_label = c()
   reconstructed_z = c()
   
-  if (mode == "targeted"){
-    envelops1 = unique(features1$Envelop)
-    NE =  length(envelops1)
+  Features1 = features1$FEATURE
+  NF =  length(Features1)
     
-    for (e in 1:NE){
-      valid = which(scan1$Envelop == envelops1[e])
-      envelop = scan1[valid,,drop=FALSE]
-      charges = strsplit(paste0(envelop$z, collapse = ":"),":")[[1]]
-      charges = sort(as.numeric(unique(charges)))
-      formulas =  unlist(sapply(envelop$FORMULA, function(x) strsplit(x, ":")[[1]]))
-      formulas = unique(as.character(formulas))
-      formulas = formulas[!is.na(formulas)]
-      labels =  unlist(sapply(envelop$CPD, function(x) strsplit(x, ":")[[1]]))
-      labels = unique(as.character(labels))
-      labels = labels[!is.na(labels)]
-
-      for (j in 1:length(formulas)){
-        theo_list = BRAIN::useBRAIN(ListFormula1(formulas[j]))
-        theo_relative_int =  theo_list$isoDistr/theo_list$isoDistr[1]
-        
-        # Calculate m/z at different charge states:
-        if (polarity == "Negative"){
-          theo_mz = (theo_list$monoisotopicMass - 1.00726*charges)/charges
-        }
-        if (polarity == "Positive"){
-          theo_mz = (theo_list$monoisotopicMass + 1.00726*charges)/charges
-        }
-        
-        # Go through charge states:
-        
-        for (m in 1:length(theo_mz)){
-          errors = abs(scan0[,1] - theo_mz[m])
-          # Use monoisotopic peak found in raw scan to calculate intensities
-          if (min(errors)<=mz_error){ 
-            start_ind = which.min(errors)
-            theo_all_int = theo_relative_int*scan0[start_ind,2]
-            raw_scan$labels[start_ind]= labels[j]
-            raw_scan$z[start_ind]= charges[m]
-          # Use baseline if monoisotopic m/z not found in raw data
-          } else {
-            theo_all_int = theo_relative_int*baseline
-          }
-          if (polarity == "Negative"){
-            theo_all_mz = (theo_list$masses - 1.00726*charges[m])/charges[m]
-          }
-          if (polarity == "Positive"){
-            theo_all_mz = (theo_list$masses + 1.00726*charges[m])/charges[m]
-          }
-          reconstructed_mz = c(reconstructed_mz, theo_all_mz)
-          reconstructed_int = c(reconstructed_int, theo_all_int)
-          tmp_labels = tmp_z = rep("", length(theo_all_mz))
-          tmp_labels[1] = labels[j]
-          tmp_z[1] = charges[m]
-          reconstructed_label = c(reconstructed_label, tmp_labels)
-          reconstructed_z = c(reconstructed_z, tmp_z)
-        }
-      }
-    }
-  
-    reconstructed_scan = cbind.data.frame(mz = reconstructed_mz, int = reconstructed_int, 
-                                        labels = reconstructed_label, z = reconstructed_z)
-    reconstructed_scan = reconstructed_scan[order(reconstructed_scan$mz),]
-    reconstructed_scan = reconstructed_scan[reconstructed_scan$int>=baseline,]
-    colnames(reconstructed_scan) = colnames(raw_scan)
+  for (f in 1:NF){
     
-  }
-  
-  if (mode == "untargeted"){
-    Features1 = features1$FEATURE
-    NF =  length(Features1)
+    # Theoretical distribution:
     
-    for (f in 1:NF){
-      valid = which(scan1$FEATURE == Features1[f])
-      ftr = scan1[valid,,drop=FALSE]
-      charges = strsplit(paste0(ftr$z, collapse = ":"),":")[[1]]
-      charges = sort(as.numeric(unique(charges)))
-      mmw =  features1$MMW[f]
+    if (mode == "targeted"){
+      tmp_feature_label = str_replace_all(Features1[f], "[^[:alnum:]]", "")
+      tmp_scan1_cpd = str_replace_all(scan1$CPD, "[^[:alnum:]]", "")
       
+      valid = which(str_detect(tmp_scan1_cpd,  tmp_feature_label))
+      formula1 = features1$FORMULA[f]
+      theo_list = BRAIN::useBRAIN(ListFormula1(formula1))
+    } 
+    if (mode == "untargeted"){
+      valid = which(scan1$FEATURE == Features1[f])
+      mmw =  features1$EXP_MMW[f]
       if (bblock %in% c("DNA", "RNA")){
         theo_list <- brain_from_pointless(type = bblock, mmw, ntheo)
       } else {
         theo_list <- brain_from_bblock(bblock, mmw, ntheo)
       }
+    }
+    
+    theo_relative_int =  theo_list$isoDistr/sum(theo_list$isoDistr) # Normalize to sum
+    
+  # Charge summary:
+    
+    ftr = scan1[valid,,drop=FALSE]
+    charges = strsplit(paste0(ftr$z, collapse = ":"),":")[[1]]
+    charges = sort(as.numeric(unique(charges)))
+    
+  # Calculate theoretical m/z at different charge states:
       
-      theo_relative_int =  theo_list$isoDistr/theo_list$isoDistr[1]
-      
-      # Calculate m/z at different charge states:
-      if (polarity == "Negative"){
-          theo_mz = (theo_list$monoisotopicMass - 1.00726*charges)/charges
-      }
-      if (polarity == "Positive"){
-          theo_mz = (theo_list$monoisotopicMass + 1.00726*charges)/charges
-      }
+    if (polarity == "Negative"){
+      theo_mz = (theo_list$monoisotopicMass - 1.00726*charges)/charges
+      theo_max = (max(theo_list$masses) - 1.00726*charges)/charges
+    }
+    if (polarity == "Positive"){
+      theo_mz = (theo_list$monoisotopicMass + 1.00726*charges)/charges
+      theo_max = (max(theo_list$masses) + 1.00726*charges)/charges
+    }
         
-      # Go through charge states:
+  # Go through charge states:
       
-      for (m in 1:length(theo_mz)){
-        errors = abs(scan0[,1] - theo_mz[m])
-        # Use monoisotopic peak found in raw scan to calculate intensities
-        if (min(errors)<=mz_error){ 
-          start_ind = which.min(errors)
-          theo_all_int = theo_relative_int*scan0[start_ind,2]
-          raw_scan$labels[start_ind]= Features1[f]
-          raw_scan$z[start_ind]= charges[m]
-            # Use baseline if monoisotopic m/z not found in raw data
-        } else {
-          theo_all_int = theo_relative_int*baseline
-        }
-        if (polarity == "Negative"){
-          theo_all_mz = (theo_list$masses - 1.00726*charges[m])/charges[m]
-        }
-        if (polarity == "Positive"){
-          theo_all_mz = (theo_list$masses + 1.00726*charges[m])/charges[m]
-        }
+    for (m in 1:length(theo_mz)){
+      
+      # Check monoisotopic peak in raw scan
+      
+      errors = abs(scan0[,1] - theo_mz[m])
+      
+      if (min(errors)<=mz_error){ 
+        start_ind = which.min(errors)
+        end_ind = which.min(abs(scan0[,1] - theo_max[m]))
+        theo_all_int = theo_relative_int*sum(scan0[start_ind:end_ind,2]) # intensitive predicted
+        raw_scan$labels[start_ind]= Features1[f]
+        raw_scan$z[start_ind]= charges[m]
+      
+        if (polarity == "Negative"){theo_all_mz = (theo_list$masses - 1.00726*charges[m])/charges[m]}
+        if (polarity == "Positive"){theo_all_mz = (theo_list$masses + 1.00726*charges[m])/charges[m]}
         reconstructed_mz = c(reconstructed_mz, theo_all_mz)
         reconstructed_int = c(reconstructed_int, theo_all_int)
         tmp_labels = tmp_z = rep("", length(theo_all_mz))
+        
         tmp_labels[1] = Features1[f]
         tmp_z[1] = charges[m]
         reconstructed_label = c(reconstructed_label, tmp_labels)
         reconstructed_z = c(reconstructed_z, tmp_z)
-        }
       }
+    }
     
     reconstructed_scan = cbind.data.frame(mz = reconstructed_mz, int = reconstructed_int, 
                         labels = reconstructed_label, z = reconstructed_z)
     reconstructed_scan = reconstructed_scan[order(reconstructed_scan$mz),]
-    reconstructed_scan = reconstructed_scan[reconstructed_scan$int>=baseline,]
+
     colnames(reconstructed_scan) = colnames(raw_scan)
   }
 

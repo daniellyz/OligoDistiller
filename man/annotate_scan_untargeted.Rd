@@ -8,9 +8,8 @@ annotate_scan_untargeted(
   scan_processed_aggregated,
   bblock,
   ntheo = 12,
-  min_relative = 0.1,
   min_overlap = 0.6,
-  max_msigma = 1
+  max_msigma = 10
 )
 }
 \description{

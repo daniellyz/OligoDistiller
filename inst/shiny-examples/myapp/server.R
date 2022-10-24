@@ -57,7 +57,7 @@ shinyServer(function(input, output,clientData, session){
   
   output$ParamAnnotation2m <- renderUI({
     if (input$OptionAnnotation == "UB"){
-      numericInput("mSigma2", "Maximum isotopic pattern fit deviation (mSigma):",5, min = 0.5, max = 50)
+      numericInput("mSigma2", "Maximum isotopic pattern fit deviation (mSigma):",10, min = 0.5, max = 50)
     }
   })
   
@@ -69,7 +69,7 @@ shinyServer(function(input, output,clientData, session){
   
   output$ParamAnnotation3m <- renderUI({
     if (input$OptionAnnotation == "UP"){
-      numericInput("mSigma3", "Maximum isotopic pattern fit deviation (mSigma):",5, min = 0.5, max = 50)
+      numericInput("mSigma3", "Maximum isotopic pattern fit deviation (mSigma):",10, min = 0.5, max = 50)
     }
   })
   
@@ -188,7 +188,7 @@ shinyServer(function(input, output,clientData, session){
       mz_error = input$mz_error
       mw_gap = input$mw_gap
       ntheo = mw_gap + 2 # Number of theoretical fragment set a bit higher than mw gap
-      
+       
       scan.deconvoluted = process_scan(scan, polarity = polarity, baseline = baseline, 
                 MSMS = msms, min_charge = charge_range[1], max_charge = charge_range[2], 
                 min_mz = mz_range[1], max_mz = mz_range[2], min_mw = mw_range[1], max_mw = mw_range[2] , 
@@ -218,16 +218,12 @@ shinyServer(function(input, output,clientData, session){
         
         bblock = input$mBB1
         mSigma = input$mSigma2
-        if (input$MSMS){
-          min_overlap = 0.4
-          min_relative = 0.01 # Less strict filter for MS2 data
-        } else {
-          min_overlap = 0.6
-          min_relative = 0.1 
-        }
+        
+        if (input$MSMS){ min_overlap = 0.4# Less strict filter for MS2 data
+        } else {min_overlap = 0.6}
         
         if (!is.null(bblock) & !is.null(mSigma)){
-          scan.deconvoluted.annotated = annotate_scan_untargeted(scan.deconvoluted, bblock, ntheo, min_relative, min_overlap, mSigma)
+          scan.deconvoluted.annotated = annotate_scan_untargeted(scan.deconvoluted, bblock, ntheo, min_overlap, mSigma)
        }
       }
       
@@ -235,16 +231,11 @@ shinyServer(function(input, output,clientData, session){
         
         bblock = input$FLP_type
         mSigma = input$mSigma3
-        if (input$MSMS){
-          min_overlap = 0.4
-          min_relative = 0.01 # Less strict filter for MS2 data
-        } else {
-          min_overlap = 0.6
-          min_relative = 0.1 
-        }
+        if (input$MSMS){ min_overlap = 0.4# Less strict filter for MS2 data
+        } else {min_overlap = 0.6}
         
         if (!is.null(bblock) & !is.null(mSigma)){
-          scan.deconvoluted.annotated = annotate_scan_untargeted(scan.deconvoluted, bblock, ntheo, min_relative, min_overlap, mSigma)
+          scan.deconvoluted.annotated = annotate_scan_untargeted(scan.deconvoluted, bblock, ntheo, min_overlap, mSigma)
         }
       }
     }
@@ -360,16 +351,14 @@ shinyServer(function(input, output,clientData, session){
       if (!is_negative) {
         polarity <- "Positive"
       }
-      ntheo <- input$mw_gap + 2
+      ntheo <- input$mw_gap 
       if (input$OptionAnnotation == "T") {mode <- "targeted"}
       if (input$OptionAnnotation == "TDB") {mode <- "targeted"}
       if (input$OptionAnnotation == "UB") {mode <- "untargeted"}
       if (input$OptionAnnotation == "UP") {mode <- "untargeted"}
       
-      yyy <- reconstruct_scan_annotated(test.scan, results,
-                                        polarity = polarity, baseline = input$baseline,
-                                        mode = mode, mz_error = input$mz_error, ntheo = ntheo
-      )
+      yyy <- reconstruct_scan_annotated(test.scan, results, polarity = polarity, 
+                                mode = mode, mz_error = input$mz_error, ntheo = ntheo)
       original_sp <- yyy$original_scan
       reconstructed_sp <- yyy$reconstructed_scan
       idx <- input$table2_rows_selected
@@ -427,16 +416,16 @@ shinyServer(function(input, output,clientData, session){
       if (!is_negative) {
         polarity <- "Positive"
       }
-      ntheo <- input$mw_gap + 2
+      ntheo <- input$mw_gap
       if (input$OptionAnnotation == "T") {mode <- "targeted"}
       if (input$OptionAnnotation == "TDB") {mode <- "targeted"}
       if (input$OptionAnnotation == "UB") {mode <- "untargeted"}
       if (input$OptionAnnotation == "UP") {mode <- "untargeted"}
       
       yyy <- reconstruct_scan_annotated(test.scan, results,
-                                        polarity = polarity, baseline = input$baseline,
-                                        mode = mode, mz_error = input$mz_error, ntheo = ntheo
-      )
+                            polarity = polarity, mode = mode, 
+                            mz_error = input$mz_error, ntheo = ntheo)
+      
       original_sp <- yyy$original_scan
       reconstructed_sp <- yyy$reconstructed_scan
       idx <- input$table2_rows_selected

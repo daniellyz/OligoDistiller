@@ -376,14 +376,10 @@ shinyServer(function(input, output,clientData, session){
       
       p_raw <- p_reconstructed <- NULL
       
-      orig_recons_max_intensity <- max(c(original_sp$I, reconstructed_sp$I), na.rm = TRUE)
-      
       if (!is.null(original_sp)) {
         x_orig <- original_sp[, 1]
         
-        # normalize intensity to compare the original spec with the reconstructed spectrum 
-        # (divide by the highest peak)
-        y_orig <- original_sp[, 2] / orig_recons_max_intensity
+        y_orig <- original_sp[, 2]
         min_x <- input$mz_range[1] * 0.9
         max_x <- input$mz_range[2] * 1.1
         max_y <- max(y_orig) * 1.2
@@ -392,7 +388,7 @@ shinyServer(function(input, output,clientData, session){
           add_segments(x = ~x_orig, xend = ~x_orig, y = ~0, yend = ~y_orig, type = "scatter", mode = "lines", name = "Original spectrum", line = list(color = c("darkblue"))) %>%
           layout(
             xaxis = list(zeroline = FALSE, title = "m/z", range = c(min_x, max_x)),
-            yaxis = list(title = "Normalized intensity", range = c(0, max_y))
+            yaxis = list(title = "Intensity", range = c(0, max_y))
           )
         
         # add charge state text annotation for the raw plot
@@ -418,9 +414,7 @@ shinyServer(function(input, output,clientData, session){
       if (!is.null(reconstructed_sp)) {
         x_recon <- reconstructed_sp[, 1]
         
-        # normalize intensity to compare the original spec with the reconstructed spectrum 
-        # (divide by the highest peak)
-        y_recon <- reconstructed_sp[, 2] / orig_recons_max_intensity
+        y_recon <- reconstructed_sp[, 2]
         
         min_x <- input$mz_range[1] * 0.9
         max_x <- input$mz_range[2] * 1.1
@@ -430,7 +424,7 @@ shinyServer(function(input, output,clientData, session){
           add_segments(x = ~x_recon, xend = ~x_recon, y = ~0, yend = ~y_recon, type = "scatter", mode = "lines", name = "Reconstructed spectrum", line = list(color = c("brown"))) %>%
           layout(
             xaxis = list(zeroline = FALSE, title = "m/z", range = c(min_x, max_x)),
-            yaxis = list(title = "Normalized intensity", range = c(0, max_y))
+            yaxis = list(title = "Intensity", range = c(0, max_y))
           )
         
         # add charge state text annotation for the reconstructed plot
@@ -457,6 +451,7 @@ shinyServer(function(input, output,clientData, session){
           p_raw,
           p_reconstructed,
           shareX = TRUE, 
+          titleY = TRUE,
           nrows = 2
           )
       } else if (!is.null(p_raw)) {

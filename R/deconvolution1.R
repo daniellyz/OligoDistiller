@@ -102,12 +102,12 @@ deconvolution1 <- function(scan_df, theor_ID_cmpd1, theor_ID_cmpd2, n_theor_peak
       design_matrix <- get_design_matrix(X = cbind(cmpd1 = theor_ID_cmpd1_z_split[[z_ind]]$intensity, 
                                 cmpd2 = theor_ID_cmpd2_z_split[[z_ind]]$intensity),
                                 match_index = data$theor_ind, mass_diff = template_mass_diff, normalize = TRUE)
-      mod <- nls(I(mix - cmpd1) ~ theta * I(cmpd2 - cmpd1), start = list("theta" = 0.5), algorithm = "port", lower = list("theta" = 0), upper = list("theta" = 1),
+      mod <- nls(I(mix - cmpd1) ~ exp(theta)/(1+exp(theta)) * I(cmpd2 - cmpd1), start = list("theta" = 0),
                data = cbind(mix = data$intensity, design_matrix))
-      #mod <- nls(I(mix - cmpd1) ~ theta * I(cmpd2 - cmpd1), start = list(theta = 0), algorithm = "plinear",
-      #           data = cbind(mix = data$intensity, design_matrix), trace = T)
-      
       mod_sum <- summary(mod)
+      
+      cf <- mod_sum$coefficients[, 1]
+      prop <- exp(cf)/(1+exp(cf))
       
       dc = as.numeric(design_matrix$cmpd1)
       
@@ -121,7 +121,7 @@ deconvolution1 <- function(scan_df, theor_ID_cmpd1, theor_ID_cmpd2, n_theor_peak
       
       mpcse <- mean(tmp_mpcse[is.finite(tmp_mpcse)], na.rm = TRUE)
     
-      results$by_charge[[z_ind]] <- c(estimate = mod_sum$coefficients[, 1], mpcse = mpcse)
+      results$by_charge[[z_ind]] <- c(estimate = prop, mpcse = mpcse)
 
     } else {results$by_charge[[z_ind]]  = c(estimate = 0, mpcse = 0)} 
   }

@@ -30,7 +30,7 @@
 #' @export
 #'
 
-deconvolution1 <- function(scan_df, theor_ID_cmpd1, theor_ID_cmpd2, n_theor_peaks, expected_charge_range, matching_mass_accuracy, noise_threshold, deduplicate_fun) {
+deconvolution1 <- function(scan_df, theor_ID_cmpd1, theor_ID_cmpd2, n_theor_peaks, expected_charge_range, matching_mass_accuracy, noise_threshold, deduplicate_fun, min_npeak_match = 6) {
 
   # Without giving mass value  
   # remove noisy peaks
@@ -69,6 +69,7 @@ deconvolution1 <- function(scan_df, theor_ID_cmpd1, theor_ID_cmpd2, n_theor_peak
     select(spectrum, intensity, z, mz) # Piotr's update: this order of columns is required
   
   # the spectrum shifted to the left should be used for matching the observed peaks with theoretical peaks
+  # this theoretical ID deliberately contains a lot peaks such that it should cover the entire range of experimental peaks
   if (template_mass_diff > 0) { # cmpd1 mono mass - cmpd2 mono mass
     ID_match <- theor_ID_cmpd2
   } else ID_match <- theor_ID_cmpd1
@@ -76,6 +77,8 @@ deconvolution1 <- function(scan_df, theor_ID_cmpd1, theor_ID_cmpd2, n_theor_peak
   mz_tmp <- ID_match$mz
   #alignment_mz_bounds <- data.frame(z = ID_match$z, mz_lb = mz_tmp - mz_tmp * matching_mass_accuracy / 10^6, mz_ub = mz_tmp + mz_tmp * matching_mass_accuracy / 10^6)
   alignment_mz_bounds <- data.frame(z = ID_match$z, mz_lb = mz_tmp - matching_mass_accuracy, mz_ub = mz_tmp + matching_mass_accuracy)
+  alignment_mz_bounds_cmpd1 <- data.frame(z = theor_ID_cmpd1$z, mz_lb = theor_ID_cmpd1$mz - matching_mass_accuracy, mz_ub = theor_ID_cmpd1$mz + matching_mass_accuracy)
+  alignment_mz_bounds_cmpd2 <- data.frame(z = theor_ID_cmpd2$z, mz_lb = theor_ID_cmpd2$mz - matching_mass_accuracy, mz_ub = theor_ID_cmpd2$mz + matching_mass_accuracy)
   
   # split data by charge
   isotopes_z_split <- split(isotopes, isotopes$z) 
@@ -83,47 +86,78 @@ deconvolution1 <- function(scan_df, theor_ID_cmpd1, theor_ID_cmpd2, n_theor_peak
   theor_ID_cmpd1_z_split <- split(theor_ID_cmpd1, theor_ID_cmpd1$z)
   theor_ID_cmpd2_z_split <- split(theor_ID_cmpd2, theor_ID_cmpd2$z)
   alignment_mz_bounds_z_split <- split(alignment_mz_bounds, alignment_mz_bounds$z)
+  alignment_mz_bounds_cmpd1_z_split <- split(alignment_mz_bounds_cmpd1, alignment_mz_bounds_cmpd1$z)
+  alignment_mz_bounds_cmpd2_z_split <- split(alignment_mz_bounds_cmpd2, alignment_mz_bounds_cmpd2$z)
   
   results <- vector("list", 2) %>% set_names("by_charge", "combined_charge")
   results$by_charge <- vector("list", length(isotopes_z_split)) %>% set_names(paste0("z", names(isotopes_z_split)))
   
   for (z_ind in seq_along(isotopes_z_split)){
-    # match (in the mz dimension) observed peaks to the theoretical isotope distribution (given by ID_match)
-    data <- align_peaks(data = isotopes_z_split[[z_ind]][,-1], 
-                        bound = alignment_mz_bounds_z_split[[z_ind]][,-1])
-    if (nrow(data)>0){    
     
-      # if multiple observed peaks correspond to one theoretical peaks, take the most abundant one
-      data <- deduplicate_peaks(data, deduplicate_fun)
-      TIC <- sum(data$intensity, na.rm = TRUE)
-      # sum=1 normalization
-      data$intensity <- data$intensity/TIC
-      # create design matrix (with leading and trailing zeroes that correspond to the mass difference between templates)
-      design_matrix <- get_design_matrix(X = cbind(cmpd1 = theor_ID_cmpd1_z_split[[z_ind]]$intensity, 
-                                cmpd2 = theor_ID_cmpd2_z_split[[z_ind]]$intensity),
-                                match_index = data$theor_ind, mass_diff = template_mass_diff, normalize = TRUE)
-      mod <- nls(I(mix - cmpd1) ~ exp(theta)/(1+exp(theta)) * I(cmpd2 - cmpd1), start = list("theta" = 0),
-               data = cbind(mix = data$intensity, design_matrix))
-      mod_sum <- summary(mod)
-      
-      cf <- mod_sum$coefficients[, 1]
-      prop <- exp(cf)/(1+exp(cf))
-      
-      dc = as.numeric(design_matrix$cmpd1)
-      
-      mod_fitted <- as.numeric(fitted(mod)) + na.omit(dc)
-      
-      N <- TIC / sum(mod_fitted)
-
-      tmp_ind <- intersect(which(is.finite(data$intensity)), which(is.finite(mod_fitted)))
+    # match experimental peaks against two theoretical ID
+    # if the number of matched peaks is smaller than min_npeak_match, then assign estimate=0 or 1 (estimate is cmpd2_prop)
+    data11 <- align_peaks(data = isotopes_z_split[[z_ind]][,-1], 
+                        bound = alignment_mz_bounds_cmpd1_z_split[[z_ind]][,-1])
     
-      tmp_mpcse <- TIC*(data$intensity[tmp_ind] - mod_fitted[tmp_ind])^2/mod_fitted[tmp_ind]
-      
-      mpcse <- mean(tmp_mpcse[is.finite(tmp_mpcse)], na.rm = TRUE)
+    data12 <- align_peaks(data = isotopes_z_split[[z_ind]][,-1], 
+                        bound = alignment_mz_bounds_cmpd2_z_split[[z_ind]][,-1])
     
-      results$by_charge[[z_ind]] <- c(estimate = prop, mpcse = mpcse)
-
-    } else {results$by_charge[[z_ind]]  = c(estimate = 0, mpcse = 0)} 
+    if (length(data11$theor_ind) >= min_npeak_match & length(data12$theor_ind) >= min_npeak_match) {
+      
+      # actual matching, data11 and data22 were just for checking
+      data <- align_peaks(data = isotopes_z_split[[z_ind]][,-1], 
+                            bound = alignment_mz_bounds_z_split[[z_ind]][,-1])
+        
+      if (nrow(data)>0){    
+        
+        # before decomposition, display a warning if the selected theoretical ID (ID_match) contains too few peaks to match all experimental peaks
+        check1 <- ID_match %>% 
+          filter(z ==unique(isotopes_z_split[[z_ind]]$z)) %>% 
+          pull(mz) 
+        check1 <- range(check1)
+        if (any(isotopes_z_split[[z_ind]]$mz<check1[1] | isotopes_z_split[[z_ind]]$mz>check1[2])) warning("Not all experimental peaks could be assigned to theoretical isotope distributions. Please consider increasing the number of peaks to be computed by the BRAIN function.")
+        
+        # if multiple observed peaks correspond to one theoretical peaks, take the most abundant one
+        data <- deduplicate_peaks(data, deduplicate_fun) %>% 
+          arrange(theor_ind)
+        TIC <- sum(data$intensity, na.rm = TRUE)
+        # sum=1 normalization
+        data$intensity <- data$intensity/TIC
+        # create design matrix (with leading and trailing zeroes that correspond to the mass difference between templates)
+        design_matrix <- get_design_matrix(X = cbind(cmpd1 = theor_ID_cmpd1_z_split[[z_ind]]$intensity, 
+                                  cmpd2 = theor_ID_cmpd2_z_split[[z_ind]]$intensity),
+                                  match_index = data$theor_ind, mass_diff = template_mass_diff, normalize = TRUE)
+        mod <- nls(I(mix - cmpd1) ~ exp(theta)/(1+exp(theta)) * I(cmpd2 - cmpd1), start = list("theta" = 0),
+                 data = cbind(mix = data$intensity, design_matrix))
+        mod_sum <- summary(mod)
+        
+        cf <- mod_sum$coefficients[, 1]
+        prop <- exp(cf)/(1+exp(cf))
+        
+        dc = as.numeric(design_matrix$cmpd1)
+        
+        mod_fitted <- as.numeric(fitted(mod)) + na.omit(dc)
+        
+        N <- TIC / sum(mod_fitted)
+  
+        tmp_ind <- intersect(which(is.finite(data$intensity)), which(is.finite(mod_fitted)))
+      
+        tmp_mpcse <- TIC*(data$intensity[tmp_ind] - mod_fitted[tmp_ind])^2/mod_fitted[tmp_ind]
+        
+        mpcse <- mean(tmp_mpcse[is.finite(tmp_mpcse)], na.rm = TRUE)
+      
+        results$by_charge[[z_ind]] <- c(estimate = prop, mpcse = mpcse)
+  
+      } else {results$by_charge[[z_ind]]  = c(estimate = 0, mpcse = 0)} 
+      
+    } else if (length(data11$theor_ind) < min_npeak_match & length(data12$theor_ind) >= min_npeak_match) {
+      
+      results$by_charge[[z_ind]]  = c(estimate = 1, mpcse = 0)
+      
+    } else if (length(data11$theor_ind) >= min_npeak_match & length(data12$theor_ind) < min_npeak_match) {
+      # the estimate value corresponds to the proportion of cmpd2, so in this case is 0
+      results$by_charge[[z_ind]]  = c(estimate = 0, mpcse = 0)
+    }
   }
   return(results)
 }

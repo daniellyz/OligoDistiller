@@ -110,6 +110,7 @@ shinyUI(navbarPage("OligoDistiller V.01",
                 dataTableOutput("table1"),
                 br(),
                 downloadButton("downloadScan", "Download"),
+                actionButton("clearRowSelection", "Clear row selection"),
                 br(),
                 br(),
                 plotlyOutput("DisplayDeconvoluted", height = 400, width = 800)
@@ -124,10 +125,13 @@ shinyUI(navbarPage("OligoDistiller V.01",
                  downloadButton("downloadFeature", "Download"),
                  br(),
                  br(),
+<<<<<<< HEAD
                  #plotlyOutput("DisplayRaw", height = 400, width = 600),
                  #br(),
                  #plotlyOutput("DisplayReconstructed", height = 400, width = 600),
                  #br()
+=======
+>>>>>>> e7e099a74580dcb2778e8d45e1385011d848d7aa
                  plotlyOutput("DisplayRawAndReconstructed", height = 800, width = 800),
                  br()
         )

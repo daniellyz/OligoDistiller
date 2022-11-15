@@ -1,6 +1,7 @@
 options(warn=-1)
 options(shiny.maxRequestSize = 3000*1024^2)
 options(stringsAsFactors = F)
+#options(shiny.error = recover) 
 
 library(shiny)
 library(V8)
@@ -28,6 +29,12 @@ shinyServer(function(input, output,clientData, session){
   output$ParamAnnotation0b <- renderUI({
     if (input$OptionAnnotation == "TDB") {
       fileInput("mDB", "Upload edited database:", multiple = FALSE)
+    }
+  })
+  
+  output$ParamAnnotation1n <- renderUI({
+    if (input$OptionAnnotation == "T") {
+      textInput("mCPD", "FLP name", value = "Demo A")
     }
   })
   
@@ -73,7 +80,60 @@ shinyServer(function(input, output,clientData, session){
     }
   })
   
+  output$ParamAnnotation4n <- renderUI({
+    if (input$OptionAnnotation == "C") {
+      textInput("mCPD4", "FLP name", value = "Demo A")
+    }
+  })
+  
+  output$ParamAnnotation4a <- renderUI({
+    if (input$OptionAnnotation == "C") {
+      textInput("mFormula4", "FLP chemical formula:", value = "C189H238O119N66P18S4F8")
+    }
+  })
+  
+  output$ParamAnnotation4b <- renderUI({
+    if (input$OptionAnnotation == "C") {
+      downloadLink('downloadTrans4', 'Download template for modification list')
+    }
+  })
+  
+  output$ParamAnnotation4c <- renderUI({
+    if (input$OptionAnnotation == "C") {
+      fileInput("mTrans4", "Upload edited modification list:", multiple = FALSE)
+    }
+  })
+  
+  output$ParamAnnotation4k <- renderUI({
+    if (input$OptionAnnotation == "C") {
+      fileInput("mDB4", "Upload edited database:", multiple = FALSE)
+    }
+  })
+  
+  
+  output$ParamAnnotation4d <- renderUI({
+    if (input$OptionAnnotation == "C"){
+      selectInput("FLP_type4", "FLP type:", choices = c("DNA", "RNA"))
+    } 
+  })
+  
+  output$ParamAnnotation4m <- renderUI({
+    if (input$OptionAnnotation == "C"){
+      numericInput("mSigma4", "Maximum isotopic pattern fit deviation (mSigma):",10, min = 0.5, max = 50)
+    }
+  })
+  
   output$downloadTrans <- downloadHandler(
+    filename = function() {
+      "Transformation_list.txt"
+    },
+    content = function(file) {
+      data = read.csv("https://raw.githubusercontent.com/daniellyz/MESSAR/master/MESSAR_WEBSERVER_DEMO/Transformation_list.txt", sep = "\t", header=T, stringsAsFactors = F)
+      write.table(data, file, quote = F, col.names = T, row.names = F, sep = "\t")
+    }
+  )
+  
+  output$downloadTrans4 <- downloadHandler(
     filename = function() {
       "Transformation_list.txt"
     },
@@ -126,8 +186,8 @@ shinyServer(function(input, output,clientData, session){
         intlist = intlist[valid_peaks, drop = FALSE]
       }
       
-      if (length(masslist)<3){
-        mms = "The input spectrum must contain at least 3 fragment!"
+      if (length(masslist)<5){
+        mms = "The input spectrum must contain at least 3 peaks!"
         valid = 0
       }
       
@@ -187,7 +247,7 @@ shinyServer(function(input, output,clientData, session){
       baseline = input$baseline
       mz_error = input$mz_error
       mw_gap = input$mw_gap
-      ntheo = mw_gap + 2 # Number of theoretical fragment set a bit higher than mw gap
+      ntheo = mw_gap
        
       scan.deconvoluted = process_scan(scan, polarity = polarity, baseline = baseline, 
                 MSMS = msms, min_charge = charge_range[1], max_charge = charge_range[2], 
@@ -201,17 +261,18 @@ shinyServer(function(input, output,clientData, session){
         if (!is.null(mDB)){
           DB = read.csv(mDB$datapath, sep = "\t", header = T)
           scan.deconvoluted.annotated = annotate_scan_targeted(
-            scan.deconvoluted, formula_flp = "", transformation_list = NULL, mdb = DB, ntheo = ntheo)
+            scan.deconvoluted, formula_flp = "", cpd_flp = "", transformation_list = NULL, mdb = DB, ntheo = ntheo)
         }}
       
       if (input$OptionAnnotation == "T"){
         
         mTrans = input$mTrans
         mFormula = input$mFormula
+        mCPD = input$mCPD
         if (!is.null(mTrans) & !is.null(mFormula)){
           transformation_list = read.csv(mTrans$datapath, sep = "\t", header = T)
           scan.deconvoluted.annotated = annotate_scan_targeted(
-            scan.deconvoluted, formula_flp = mFormula, transformation_list, mdb = NULL, ntheo = ntheo)
+            scan.deconvoluted, formula_flp = mFormula, cpd_flp = mCPD, transformation_list, mdb = NULL, ntheo = ntheo)
         }}
       
       if (input$OptionAnnotation == "UB"){
@@ -238,23 +299,49 @@ shinyServer(function(input, output,clientData, session){
           scan.deconvoluted.annotated = annotate_scan_untargeted(scan.deconvoluted, bblock, ntheo, min_overlap, mSigma)
         }
       }
+      
+      if (input$OptionAnnotation == "C"){
+        
+        mTrans = input$mTrans4
+        mCPD = input$mCPD4
+        mFormula = input$mFormula4
+        mDB = input$mDB4         
+        bblock = input$FLP_type4
+        mSigma = input$mSigma4
+        min_overlap = 0.6        
+        
+        if (!is.null(mTrans) & !is.null(mFormula) & !is.null(bblock) & !is.null(mSigma)){
+          
+          transformation_list = read.csv(mTrans$datapath, sep = "\t", header = T)
+          scan.deconvoluted.annotated =  annotate_scan_mix(scan.deconvoluted, ntheo = ntheo, 
+                        formula_flp = mFormula, cpd_flp = mCPD,
+                        transformation_list = transformation_list, mdb = NULL, bblock = bblock, 
+                        min_overlap = min_overlap, max_msigma = mSigma)
+    
+        }
+        
+        if (!is.null(mDB) & !is.null(bblock) & !is.null(mSigma)){
+          
+          mDB = read.csv(mDB$datapath, sep = "\t", header = T)
+          scan.deconvoluted.annotated =  annotate_scan_mix(scan.deconvoluted, ntheo = ntheo, 
+              formula_flp = "", cpd_flp = "",
+              transformation_list = NULL, mdb = mDB, bblock = bblock, 
+              min_overlap = min_overlap, max_msigma = mSigma)
+      }
     }
     
     if (!is.null(scan.deconvoluted)){
       mms = paste0("Analysis finished! Please check next tabpanel(s)!")
     } else {mms = "No oligonucleotide feature detected!"}
 
-    list(results1 = scan.deconvoluted, results2 = scan.deconvoluted.annotated, message = mms)
+     list(results1 = scan.deconvoluted, results2 = scan.deconvoluted.annotated, message = mms)
+    }
   })
 
   observeEvent(input$goButton,{
 
     withProgress({
-      if (input$OptionAnnotation == "N"){
-        setProgress(message="Deconvoluting data...")
-      } else {
-        setProgress(message="Deconvoluting and annotating data...")
-      }
+      setProgress(message="Deconvoluting and annotating data...")
       Sys.sleep(1)
       setProgress(message=process()$message)
     })
@@ -341,8 +428,8 @@ shinyServer(function(input, output,clientData, session){
       }
     }
   )
-  
-  output$DisplayRaw <- renderPlotly({
+
+  output$DisplayRawAndReconstructed <- renderPlotly({
     results <- process()$results2
     if (!is.null(results)) {
       test.scan <- read_MS()$query_spectrum
@@ -356,32 +443,29 @@ shinyServer(function(input, output,clientData, session){
       if (input$OptionAnnotation == "TDB") {mode <- "targeted"}
       if (input$OptionAnnotation == "UB") {mode <- "untargeted"}
       if (input$OptionAnnotation == "UP") {mode <- "untargeted"}
+      if (input$OptionAnnotation == "C") {mode <- "mixed"}
       
       yyy <- reconstruct_scan_annotated(test.scan, results, polarity = polarity, 
-                                mode = mode, mz_error = input$mz_error, ntheo = ntheo)
+                                        mode = mode, mz_error = input$mz_error, ntheo = ntheo)
       original_sp <- yyy$original_scan
       reconstructed_sp <- yyy$reconstructed_scan
       idx <- input$table2_rows_selected
       
-      p_raw  <- NULL
-      
-      orig_recons_max_intensity <- max(c(original_sp$I, reconstructed_sp$I), na.rm = TRUE)
+      p_raw <- p_reconstructed <- NULL
       
       if (!is.null(original_sp)) {
-        x <- original_sp[, 1]
+        x_orig <- original_sp[, 1]
         
-        # normalize intensity to compare the original spec with the reconstructed spectrum 
-        # (divide by the highest peak)
-        y <- original_sp[, 2] / orig_recons_max_intensity
+        y_orig <- original_sp[, 2]
         min_x <- input$mz_range[1] * 0.9
         max_x <- input$mz_range[2] * 1.1
-        max_y <- max(y) * 1.2
+        max_y <- max(y_orig) * 1.2
         
         p_raw <- plot_ly(source = "p_raw") %>%
-          add_segments(x = ~x, xend = ~x, y = ~0, yend = ~y, type = "scatter", mode = "lines", name = "Original spectrum", line = list(color = c("darkblue"))) %>%
+          add_segments(x = ~x_orig, xend = ~x_orig, y = ~0, yend = ~y_orig, type = "scatter", mode = "lines", name = "Original spectrum", line = list(color = c("darkblue"))) %>%
           layout(
             xaxis = list(zeroline = FALSE, title = "m/z", range = c(min_x, max_x)),
-            yaxis = list(title = "Normalized intensity", range = c(0, max_y))
+            yaxis = list(title = "Intensity", range = c(0, max_y))
           )
         
         # add charge state text annotation for the raw plot
@@ -390,8 +474,8 @@ shinyServer(function(input, output,clientData, session){
           VT <- which(original_sp$labels == results$feature$FEATURE[idx])
           if (length(VT) > 0) {
             charge_anno <- list(
-              x = x[VT],
-              y = y[VT],
+              x = x_orig[VT],
+              y = y_orig[VT],
               text = paste0("<b>", original_sp[VT, 4], "</b>"),
               xref = "x",
               yref = "y",
@@ -403,53 +487,22 @@ shinyServer(function(input, output,clientData, session){
           }
         }
       }
-      p_raw
-    }
-  })
-  
-  output$DisplayReconstructed <- renderPlotly({
-    results <- process()$results2
-    if (!is.null(results)) {
-      test.scan <- read_MS()$query_spectrum
-      polarity <- "Negative"
-      is_negative <- input$polarity
-      if (!is_negative) {
-        polarity <- "Positive"
-      }
-      ntheo <- input$mw_gap
-      if (input$OptionAnnotation == "T") {mode <- "targeted"}
-      if (input$OptionAnnotation == "TDB") {mode <- "targeted"}
-      if (input$OptionAnnotation == "UB") {mode <- "untargeted"}
-      if (input$OptionAnnotation == "UP") {mode <- "untargeted"}
-      
-      yyy <- reconstruct_scan_annotated(test.scan, results,
-                            polarity = polarity, mode = mode, 
-                            mz_error = input$mz_error, ntheo = ntheo)
-      
-      original_sp <- yyy$original_scan
-      reconstructed_sp <- yyy$reconstructed_scan
-      idx <- input$table2_rows_selected
-      
-      p_reconstructed <- NULL
-      
-      orig_recons_max_intensity <- max(c(original_sp$I, reconstructed_sp$I), na.rm = TRUE)
       
       if (!is.null(reconstructed_sp)) {
-        x <- reconstructed_sp[, 1]
         
-        # normalize intensity to compare the original spec with the reconstructed spectrum 
-        # (divide by the highest peak)
-        y <- reconstructed_sp[, 2] / orig_recons_max_intensity
+        x_recon <- reconstructed_sp[, 1]
+        
+        y_recon <- reconstructed_sp[, 2]
         
         min_x <- input$mz_range[1] * 0.9
         max_x <- input$mz_range[2] * 1.1
-        max_y <- max(y) * 1.2
+        max_y <- max(y_recon) * 1.2
         
         p_reconstructed <- plot_ly(source = "p_reconstructed") %>%
-          add_segments(x = ~x, xend = ~x, y = ~0, yend = ~y, type = "scatter", mode = "lines", name = "Reconstructed spectrum", line = list(color = c("brown"))) %>%
+          add_segments(x = ~x_recon, xend = ~x_recon, y = ~0, yend = ~y_recon, type = "scatter", mode = "lines", name = "Reconstructed spectrum", line = list(color = c("brown"))) %>%
           layout(
             xaxis = list(zeroline = FALSE, title = "m/z", range = c(min_x, max_x)),
-            yaxis = list(title = "Normalized intensity", range = c(0, max_y))
+            yaxis = list(title = "Intensity", range = c(0, max_y))
           )
         
         # add charge state text annotation for the reconstructed plot
@@ -457,8 +510,8 @@ shinyServer(function(input, output,clientData, session){
           VT <- which(reconstructed_sp$labels == results$feature$FEATURE[idx])
           if (length(VT) > 0) {
             charge_anno <- list(
-              x = x[VT],
-              y = y[VT],
+              x = x_recon[VT],
+              y = y_recon[VT],
               text = paste0("<b>", reconstructed_sp[VT, 4], "</b>"),
               xref = "x",
               yref = "y",
@@ -471,8 +524,19 @@ shinyServer(function(input, output,clientData, session){
         }
       }
       
-      p_reconstructed
-      }
-    })
+      if (!is.null(p_raw) & !is.null(p_reconstructed)){
+        subplot(      
+          p_raw,
+          p_reconstructed,
+          shareX = TRUE, 
+          titleY = TRUE,
+          nrows = 2
+        )
+      } else if (!is.null(p_raw)) {
+        p_raw %>% layout(title = "Raw spectrum")
+      } else p_reconstructed %>% layout(title = "Reconstructed spectrum")
+    }
+  })
+  
   
 })

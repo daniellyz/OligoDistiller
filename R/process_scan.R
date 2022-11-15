@@ -101,31 +101,72 @@ process_scan_high_charge_bis<-function(scan1, ref_charge, mz_error){
   
   exp_mz = scan1[,1]
   
-  # Validate charge state by looking at 0.5 Da before/after:
+  # Validate charge state by looking at -0.5, +0.5 before/after:
   
   scan2 = c()
   
   for (j in 1:NS){
     
-    lookup_range = which(exp_mz>=exp_mz[j]-0.5 & exp_mz<=exp_mz[j]+0.5)
-    lookup_range = max(1, j-3): min(j+3, NS)
+    lookup_range1 = which(exp_mz>=exp_mz[j]-0.5 & exp_mz<=exp_mz[j]+0.5)
+    lookup_range2 = max(1, j-3): min(j+3, NS)
+    lookup_range = min(lookup_range2[1], lookup_range1[1]):max(lookup_range2[length(lookup_range2)], lookup_range1[length(lookup_range1)])
+    
     mzl = exp_mz[lookup_range]
     dist_mzl = data.matrix(dist(mzl))
     dist_mzl = dist_mzl[lower.tri(dist_mzl, diag = FALSE)]
     dev_charge = sapply(1:NC, function(x) abs(dist_mzl - ref_dis[x]))
-    tmp_matched = apply(dev_charge, 1, function(x) {ifelse(sum(x<=mz_error)>0, 1, 0)})
+    tmp_matched = apply(dev_charge, 1, function(x) {ifelse(sum(x<=0.01)>0, 1, 0)})
     charge_mz = ref_charge[as.matrix(apply(dev_charge, 1, which.min))]
-    charge_mz = charge_mz*tmp_matched
-    charge_mz = charge_mz[charge_mz>0]
+    charge_mz = charge_mz*tmp_matched # Charge-indicating mass differences
     
-    if (length(charge_mz)>0){
-      charge_count = sort(table(charge_mz), decreasing =TRUE)
-      if (charge_count[1]>2){
-        best_charge = as.numeric(names(charge_count[1]))
-        temp_dat = scan1[j,,drop=FALSE]
-        temp_dat =  cbind.data.frame(temp_dat, z = best_charge)
-        scan2 = rbind(scan2, temp_dat)
+    charge_mz = charge_mz[charge_mz>0]
+    charge_count = sort(table(charge_mz), decreasing = T)
+    charge_count = charge_count[charge_count>=3]
+    #charge_count = as.numeric(names(charge_count))
+    NCC = length(charge_count)
+    
+    if (NCC>0){
+      best_charge = charge_count[which(charge_count==max(charge_count))]
+      best_charge = as.numeric(names(best_charge))
+      charge_labels = as.numeric(names(charge_count))
+      charge_count = as.numeric(charge_count)
+
+      if (NCC>=2){
+        charge_labels_ref = charge_labels
+        charge_count_ref = charge_count
+        charge_grouped = list()
+        charge_grouped_count = c()
+        tc = 1
+        
+        while (NCC>1){
+          to_check = charge_labels[2:NCC]
+          idx = c(which(c(to_check%%charge_labels[1])==0),which(c(charge_labels[1]%%to_check)==0))
+          to_check = c(charge_labels[1], to_check[idx])
+          
+          charge_grouped[[tc]] = unique(to_check)
+          charge_grouped_count = c(charge_grouped_count, sum(charge_count[match(to_check, charge_labels)]))  
+          
+          tc = tc + 1
+          to_keep= which(!(charge_labels %in% to_check))
+          charge_labels = charge_labels[to_keep]
+
+          charge_count = charge_count[to_keep]
+          
+          NCC = length(charge_labels)
+        }
+        
+        if (NCC ==1){
+          charge_grouped[[tc]] = charge_labels
+          charge_grouped_count = c(charge_grouped_count, charge_count)
+        }
+        
+        valid = which.max(charge_grouped_count)[1]
+        best_charge = max(charge_grouped[[valid]])
       }
+      
+      temp_dat = scan1[j,,drop=FALSE]
+      temp_dat =  cbind.data.frame(temp_dat, z = best_charge)
+      scan2 = rbind(scan2, temp_dat)
     }
     
     # Output:

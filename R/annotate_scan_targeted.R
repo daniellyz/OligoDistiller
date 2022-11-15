@@ -6,11 +6,11 @@
 #' 
 #' @importFrom BRAIN calculateAverageMass calculateMonoisotopicMass useBRAIN
 #' @importFrom OrgMassSpecR MolecularWeight
-#' @importFrom stringr str_remove
+#' @importFrom stringr str_remove str_trim
 #' 
 #' @export
 
-annotate_scan_targeted<-function(scan_processed_aggregated, formula_flp = "C192H239O117N73P18S4F8", transformation_list = NULL, mdb = NULL, ntheo = 12){
+annotate_scan_targeted<-function(scan_processed_aggregated, formula_flp = "C192H239O117N73P18S4F8", cpd_flp = "Demo A", transformation_list = NULL, mdb = NULL, ntheo = 12){
   
   options(stringsAsFactors = F)
   features_annotated = c()
@@ -18,13 +18,35 @@ annotate_scan_targeted<-function(scan_processed_aggregated, formula_flp = "C192H
   
   # Calculate impurity formula:
   
-  expanded = expand_transformation_list(formula_flp, transformation_list, mdb)  
-  transformation_list = expanded$transformation_list
-  IFL = expanded$IFL
+  if (formula_flp!= "" & !is.null(transformation_list)){
+    formula_flp = str_trim(strsplit(formula_flp, "\\&|\\%|:")[[1]])
+    cpd_flp = str_trim(strsplit(cpd_flp, "\\&|\\%|:")[[1]], side = "right")
+    cpd_flp = str_trim(cpd_flp, side = "left")
+    if (formula_flp[1]!="" & length(formula_flp)!= length(cpd_flp)){stop("Number of Formulas should be the same as number of strand names!")}
+  
+    NFF = length(formula_flp)
+    if (NFF>0){
+      transformation_list0 = transformation_list
+      transformation_list = c()
+      IFL = list()
+      for (k in 1:NFF){
+        expanded = expand_transformation_list(formula_flp[k], transformation_list0, mdb = NULL)  
+        tmp_transformation = expanded$transformation_list
+        tmp_transformation$CPD = paste0(paste0(cpd_flp[k], ": "), tmp_transformation$CPD)
+        tmp_ifl = expanded$IFL
+        transformation_list = rbind.data.frame(transformation_list, tmp_transformation)
+        IFL = c(IFL, tmp_ifl)
+    }
+      transformation_list$ID = 1:nrow(transformation_list)
+    }} else {
+      expanded = expand_transformation_list(formula_flp, transformation_list = NULL, mdb)  
+      transformation_list = expanded$transformation_list
+      IFL = expanded$IFL
+    }
   
   # Annotate envelop
   
-  if (!is.null(scan_processed_aggregated)){
+  if (!is.null(scan_processed_aggregated) & nrow(transformation_list)>0){
     EEE = max(as.numeric(scan_processed_aggregated$Envelop))
     for (i in 1:EEE){
       inds = which(scan_processed_aggregated$Envelop==i)
@@ -74,12 +96,17 @@ annotate_envelop<-function(envelop, ref_trans, IFL, ntheo){
   
   tmp_scan = cbind.data.frame(sd1$MW, sd1$Response)
   avg_envelop = sum(tmp_scan[,1] * tmp_scan[,2]/sum(tmp_scan[,2]))
+  max_envelop = max(tmp_scan[,1])
+  min_envelop = min(tmp_scan[,1])
   
   tmp_amw = ref_trans$AVG.MW
   tmp_mmw = ref_trans$MONO.MW
   
   avg_dev = abs(avg_envelop - tmp_amw)
-  valid = which(avg_dev<=ntheo/2)
+  dev1 = max_envelop - tmp_mmw 
+  dev2 = tmp_mmw + ntheo - min_envelop 
+  
+  valid = which(avg_dev<=ntheo/3 & dev1>3 & dev2>3)
   mSigma = NULL
   
   # Only 1 possibility
@@ -168,7 +195,7 @@ annotate_envelop<-function(envelop, ref_trans, IFL, ntheo){
         
         tmp_feature_mmw = round(mSigma$mono_mass_ref, 4) # Theoretical mono
         tmp_feature_amw = round(mSigma$avg_mass_ref, 4) # Theoretical average
-        
+
         exp_feature_mmw = round(mSigma$mono_mass, 4)
         exp_feature_amw = round(mSigma$avg_mass, 4)
         exp_feature_ppm = round(mSigma$mono_ppm_dev,2)
@@ -240,9 +267,9 @@ annotate_envelop<-function(envelop, ref_trans, IFL, ntheo){
   return(list(envelop.annotated = sd1, features.annotated = sd2))
 }
 
-#######################################################
-### Isotope evaluation functions： single and mixed ###
-#######################################################
+#####################################################
+### Isotope evaluation functions single and mixed ###
+#####################################################
 
 calcul_imp_mSigma <- function(sp_deconvoluted, theo_isotope, ntheo, unknown = F){
   
@@ -535,6 +562,7 @@ expand_transformation_list<-function(formula_flp, transformation_list, mdb){
     transformation_list = NULL
     IFL = calcul_imp_formula("N/A", mdb)
     amwFLP = mmwFLP = 0
+    transformation_list$CPD = mdb$CPD
   } 
   
   NIF = length(IFL)

@@ -8,7 +8,7 @@ reconstruct_scan_annotated(
   scan0,
   scans.deconvoluted.annotated,
   polarity = "Negative",
-  mode = c("targeted", "untargeted"),
+  mode = c("targeted", "untargeted", "mixed"),
   mz_error = 0.01,
   bblock = "C21 H26.4 O13.2 N7.3 P2 S0.4 F0.9",
   ntheo = 12

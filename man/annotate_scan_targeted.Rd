@@ -7,6 +7,7 @@
 annotate_scan_targeted(
   scan_processed_aggregated,
   formula_flp = "C192H239O117N73P18S4F8",
+  cpd_flp = "Demo A",
   transformation_list = NULL,
   mdb = NULL,
   ntheo = 12

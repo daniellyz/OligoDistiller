@@ -28,6 +28,10 @@ annotate_scan_untargeted<-function(scan_processed_aggregated, bblock, ntheo = 12
     }
   }
   
+  colname_to_remove = c("OVERLAP", "AVG_MASS", "AVG_MASS_REF", "AVG_MASS_DEV")
+  inds = which(!(colnames(scan_annotated) %in% colname_to_remove)) 
+  scan_annotated = scan_annotated[,inds]
+  
   return(list(scan = scan_annotated, feature = features_annotated))
 }
 
@@ -47,7 +51,7 @@ annotate_envelop_bb<-function(envelop, bblock, ntheo = 12, min_overlap = 0.6, ma
   tic0 = sum(tmp_scan[,2]) # All scan intensity
   
   envelop_annotated = envelop
-  
+
   mSigma = NULL
   
   # Decomposition for all starting MWs
@@ -65,13 +69,13 @@ annotate_envelop_bb<-function(envelop, bblock, ntheo = 12, min_overlap = 0.6, ma
       
       tmp_feature_mw = tmp_scan1[1,1]
       tmp_feature_response = sum(tmp_scan[,2])
-      tmp_feature_all_mw = paste0(round(tmp_scan1[,1],2), collapse = ":")
+      #tmp_feature_all_mw = paste0(round(tmp_scan1[,1],2), collapse = ":")
       tmp_avg_mw = sum(tmp_scan[,1] * tmp_scan[,2]/sum(tmp_scan[,2]))
-      
+    
       envelop_annotated$SCORE = max_msigma
       envelop_annotated$OVERLAP = 0.5
       envelop_annotated$MMW.Starter = c(1,0)
-      envelop_annotated$AVG_MASS = c(tmp_avg_mw, 0)
+      envelop_annotated$AVG_MASS = c(round(tmp_avg_mw,4), 0)
       envelop_annotated$AVG_MASS_REF = 0
       envelop_annotated$AVG_MASS_DEV = -1
       
@@ -79,7 +83,9 @@ annotate_envelop_bb<-function(envelop, bblock, ntheo = 12, min_overlap = 0.6, ma
                           THEO_MMW = -1, THEO_AMW = -1, 
                           EXP_MMW = tmp_feature_mw, EXP_AMW =  tmp_avg_mw, 
                           EXP_MMW_PPM = -1, EXP_AMW_DEV = -1,
-                          SCORE = max_msigma, RESPONSE = tmp_feature_response, MW_ALL = tmp_feature_all_mw)
+                          SCORE = max_msigma, RESPONSE = tmp_feature_response, 
+                          #MW_ALL = tmp_feature_all_mw, 
+                          Envelop = envelop$Envelop[1])
       envelop_annotated$FEATURE = sd1$FEATURE
       return(list(envelop.annotated = envelop_annotated, features.annotated = sd1))
     } else {return(NULL)}
@@ -148,6 +154,7 @@ annotate_envelop_bb<-function(envelop, bblock, ntheo = 12, min_overlap = 0.6, ma
       
       inds = c(as.numeric(match(start_mws, tmp_scan[,1])), NP+1)
       sd2 = c()
+      envelop_annotated$FEATURE = "N/A"
       
       for (t in 1:(length(inds)-1)){
         all_ind = inds[t]:(inds[t+1]-1)
@@ -158,13 +165,15 @@ annotate_envelop_bb<-function(envelop, bblock, ntheo = 12, min_overlap = 0.6, ma
         tmp_feature_aw_ref = envelop_annotated$AVG_MASS_REF[inds[t]]
         tmp_feature_aw_dev = envelop_annotated$AVG_MASS_DEV[inds[t]]
         tmp_msigma = envelop_annotated$SCORE[inds[t]]
-        tmp_feature_all_mw = paste0(round(tmp_scan[all_ind, 1],2), collapse = ":")
+        #tmp_feature_all_mw = paste0(round(tmp_scan[all_ind, 1],2), collapse = ":")
         
         tmp_sd = cbind.data.frame(FEATURE = paste0("E",envelop_annotated$Envelop[1], "T", t), FORMULA = "Unknown",
                           THEO_MMW = -1, THEO_AMW = tmp_feature_aw_ref,        
                           EXP_MMW = tmp_feature_mw, EXP_AMW =  tmp_feature_aw, 
                           EXP_MMW_PPM = -1, EXP_AMW_DEV = tmp_feature_aw_dev,
-                          SCORE = tmp_msigma, RESPONSE = tmp_feature_response, MW_ALL = tmp_feature_all_mw)
+                          SCORE = tmp_msigma, RESPONSE = tmp_feature_response, 
+                          #MW_ALL = tmp_feature_all_mw,  
+                          Envelop = envelop$Envelop[1])
         sd2 = rbind.data.frame(sd2, tmp_sd)
         envelop_annotated$FEATURE[all_ind] =  tmp_sd$FEATURE[1]
       }
@@ -294,7 +303,7 @@ brain_from_bblock<-function(bblock, MW0, ntheo = 12){
 brain_from_pointless <- function(type, mass, ntheo = 12) {
   
   nbPeaks = ntheo
-  
+    
   if (any(!is.numeric(mass), length(mass) > 1)) stop("The supplied mass vector should be a scalar")
   L <- length(mass)
   
@@ -308,8 +317,12 @@ brain_from_pointless <- function(type, mass, ntheo = 12) {
   }
   
   index <- model$range[1] <= mass & mass <= model$range[2]
-  if (!index) stop("The supplied mass falls beyond the range of the predictive model; the isotope distribution cannot be predicted.")
-  
+  if (!index) {
+    #("The supplied mass falls beyond the range of the predictive model; the isotope distribution cannot be predicted.")
+    output = brain_from_bblock("C29 H36 N11.5 O20.3 P3", mass, ntheo = nbPeaks)
+    return(output)
+  } else {
+    
   nbIso <- dim(model$poly_coefs)[2]
   nbPoly <- dim(model$poly_coefs)[1] - 1
   
@@ -345,7 +358,7 @@ brain_from_pointless <- function(type, mass, ntheo = 12) {
               masses = m_hat, 
               monoisotopicMass = m_hat[1],
               avgMass = avg_mass))
-}
+}}
 
 #######################
 ##Additional functions#

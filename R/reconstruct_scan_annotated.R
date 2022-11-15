@@ -9,7 +9,7 @@
 #' @export
 #' 
 reconstruct_scan_annotated<-function(scan0, scans.deconvoluted.annotated, polarity = "Negative",
-                  mode = c("targeted","untargeted"), mz_error = 0.01, bblock = "C21 H26.4 O13.2 N7.3 P2 S0.4 F0.9", ntheo = 12){
+                  mode = c("targeted","untargeted", "mixed"), mz_error = 0.01, bblock = "C21 H26.4 O13.2 N7.3 P2 S0.4 F0.9", ntheo = 12){
   
   raw_scan = data.frame(scan0)
   raw_scan$labels = ""
@@ -48,6 +48,24 @@ reconstruct_scan_annotated<-function(scan0, scans.deconvoluted.annotated, polari
       }
     }
     
+    if (mode == "mixed"){
+        tmp_feature_label = str_replace_all(Features1[f], "[^[:alnum:]]", "")
+        tmp_scan1_cpd = str_replace_all(scan1$CPD, "[^[:alnum:]]", "")
+        valid = which(str_detect(tmp_scan1_cpd,  tmp_feature_label))
+        if (length(valid)>0){ # If is a known impurity
+          formula1 = features1$FORMULA[f] 
+          theo_list = BRAIN::useBRAIN(ListFormula1(formula1))
+        } else {
+          valid = which(scan1$FEATURE == Features1[f])
+          mmw =  features1$EXP_MMW[f]
+          if (bblock %in% c("DNA", "RNA")){
+            theo_list <- brain_from_pointless(type = bblock, mmw, ntheo)
+          } else {
+            theo_list <- brain_from_bblock(bblock, mmw, ntheo)
+          }
+        }
+    }
+  
     theo_relative_int =  theo_list$isoDistr/sum(theo_list$isoDistr) # Normalize to sum
     
   # Charge summary:
@@ -93,14 +111,13 @@ reconstruct_scan_annotated<-function(scan0, scans.deconvoluted.annotated, polari
         reconstructed_label = c(reconstructed_label, tmp_labels)
         reconstructed_z = c(reconstructed_z, tmp_z)
       }
-    }
+    }}
     
-    reconstructed_scan = cbind.data.frame(mz = reconstructed_mz, int = reconstructed_int, 
+  reconstructed_scan = cbind.data.frame(mz = reconstructed_mz, int = reconstructed_int, 
                         labels = reconstructed_label, z = reconstructed_z)
-    reconstructed_scan = reconstructed_scan[order(reconstructed_scan$mz),]
+  reconstructed_scan = reconstructed_scan[order(reconstructed_scan$mz),]
 
-    colnames(reconstructed_scan) = colnames(raw_scan)
-  }
+  colnames(reconstructed_scan) = colnames(raw_scan)
 
   return(list(original_scan = raw_scan, reconstructed_scan = reconstructed_scan))
 }

@@ -1,6 +1,7 @@
 options(warn=-1)
 options(shiny.maxRequestSize = 3000*1024^2)
 options(stringsAsFactors = F)
+#options(shiny.error = recover) 
 
 library(shiny)
 library(V8)
@@ -21,7 +22,7 @@ shinyUI(navbarPage("OligoDistiller V.01",
                    
                 checkboxInput("polarity", h5("Data aquired is in negative ion mode."), TRUE),
                 checkboxInput("centroid", h5("MS data is already centroided."), TRUE),
-                checkboxInput("MSMS", h5("Data aquired is MS/MS data."), FALSE),
+                checkboxInput("MSMS", h5("Data aquired is MS/MS data or very noisy."), FALSE),
                 
                 br(),
                 h4("Please estimate the charge state range:"),
@@ -51,15 +52,23 @@ shinyUI(navbarPage("OligoDistiller V.01",
                 radioButtons(
                   "OptionAnnotation",
                   "",
-                  c("No annotation" = "N", 
+                  c("Targeted and untargeted combined" = "C", 
                     "Targeted with a database" = "TDB",
                     "Targeted with a modification list" = "T",
                     "Untargeted with building blocks" = "UB",
                     "Untargeted with Pointless algorithm" = "UP")
                 ),
                 
+                uiOutput('ParamAnnotation4n'),
+                uiOutput('ParamAnnotation4a'),
+                uiOutput('ParamAnnotation4b'),
+                uiOutput('ParamAnnotation4c'),
+                uiOutput('ParamAnnotation4k'),
+                uiOutput('ParamAnnotation4d'),
+                uiOutput('ParamAnnotation4m'),
                 uiOutput('ParamAnnotation0a'),
                 uiOutput('ParamAnnotation0b'),
+                uiOutput('ParamAnnotation1n'),
                 uiOutput('ParamAnnotation1a'),
                 uiOutput('ParamAnnotation1b'),
                 uiOutput('ParamAnnotation1c'),
@@ -115,9 +124,11 @@ shinyUI(navbarPage("OligoDistiller V.01",
                  downloadButton("downloadFeature", "Download"),
                  br(),
                  br(),
-                 plotlyOutput("DisplayRaw", height = 400, width = 600),
-                 br(),
-                 plotlyOutput("DisplayReconstructed", height = 400, width = 600),
+                 #plotlyOutput("DisplayRaw", height = 400, width = 600),
+                 #br(),
+                 #plotlyOutput("DisplayReconstructed", height = 400, width = 600),
+                 #br()
+                 plotlyOutput("DisplayRawAndReconstructed", height = 800, width = 800),
                  br()
         )
 ))

@@ -23,7 +23,6 @@ annotate_scan_targeted<-function(scan_processed_aggregated, formula_flp = "C192H
   IFL = expanded$IFL
   
   # Annotate envelop
-  
   if (!is.null(scan_processed_aggregated)){
     EEE = max(as.numeric(scan_processed_aggregated$Envelop))
     for (i in 1:EEE){
@@ -116,7 +115,7 @@ annotate_envelop<-function(envelop, ref_trans, IFL, ntheo){
                         noise_threshold = 0,
                         deduplicate_fun = "max"
                   ), silent = F)
-    
+  
     if (class(optim)!="try-error"){
       tmp_optim = "correct"
       coef2 = optim$by_charge$z1[1]
@@ -130,7 +129,7 @@ annotate_envelop<-function(envelop, ref_trans, IFL, ntheo){
         coef1 = 1
         coef2 = 0
       }}
-    
+
     if (coef1>0 & coef2>0){
       mSigma = calcul_mix_mSigma(tmp_scan, theo_isotope1, theo_isotope2, coef1, coef2, ntheo)
     }
@@ -145,9 +144,9 @@ annotate_envelop<-function(envelop, ref_trans, IFL, ntheo){
       mSigma = calcul_imp_mSigma(tmp_scan, theo_isotope2, ntheo)
     }
   }
-  
+
   # Output results:
-  
+
   if (!is.null(mSigma)){
     if (!is.na(mSigma$score) & nrow(mSigma$exp_sp)>0){
      if (mSigma$score>0){
@@ -156,28 +155,28 @@ annotate_envelop<-function(envelop, ref_trans, IFL, ntheo){
         coef2 = 0
         inds = match(mSigma$exp_sp[,1], sd1$MW)
         inds = inds[!is.na(inds)]
-        
+
         tmp_cpd[inds] = ref_trans$CPD[valid]
         tmp_formula[inds] = ref_trans$FORMULA[valid]
         tmp_score[inds] = round(mSigma$score,2)
         tmp_cpd1[inds] = ref_trans$CPD[valid]
-        
+
         tmp_feature = ref_trans$CPD[valid]
         tmp_feature_envelop = sd1$Envelop[1]
         tmp_feature_formula = ref_trans$FORMULA[valid]
-        
+
         tmp_feature_mmw = round(mSigma$mono_mass_ref, 4) # Theoretical mono
         tmp_feature_amw = round(mSigma$avg_mass_ref, 4) # Theoretical average
-        
+
         exp_feature_mmw = round(mSigma$mono_mass, 4)
         exp_feature_amw = round(mSigma$avg_mass, 4)
         exp_feature_ppm = round(mSigma$mono_ppm_dev,2)
         exp_feature_dev = round(mSigma$avg_mass_dev,2)
         exp_feature_score = round(mSigma$score,2)
-        
+
         exp_feature_response = round(sum(sd1$Response[which(sd1$MW %in% mSigma$exp_sp)]),0)
-      } 
-       
+      }
+
       if (("score1" %in% names(mSigma)) & !is.null(mSigma$mono_mass1)){
 
         inds1 = match(mSigma$exp_sp1[,1], sd1$MW)
@@ -185,24 +184,24 @@ annotate_envelop<-function(envelop, ref_trans, IFL, ntheo){
         tmp_cpd[inds1] = ref_trans$CPD[valid[1]]
         tmp_formula[inds1] = ref_trans$FORMULA[valid[1]]
         tmp_score[inds1] = round(mSigma$score1,2)
-        
+
         inds2 = match(mSigma$exp_sp2[,1], sd1$MW)
         inds2 = inds2[!is.na(inds2)]
         tmp_cpd[inds2] = paste0(tmp_cpd[inds2], ":", ref_trans$CPD[valid[2]])
         tmp_formula[inds2] = paste0(tmp_formula[inds2], ":", ref_trans$FORMULA[valid[2]])
         tmp_score[inds2] = paste0(tmp_score[inds2], ":", round(mSigma$score2,2))
- 
+
         inds = unique(c(inds1, inds2))
         tmp_score[inds] = paste0(tmp_score[inds], "%", round(mSigma$score,2))
         tmp_cpd1[inds] =  paste0(ref_trans$CPD[valid[1]] , ":",ref_trans$CPD[valid[2]])
-        
+
         tmp_feature = ref_trans$CPD[valid]
         tmp_feature_envelop = sd1$Envelop[1]
         tmp_feature_formula = ref_trans$FORMULA[valid]
 
         tmp_feature_mmw = round(c(mSigma$mono_mass_ref1,mSigma$mono_mass_ref2), 4) # Theoretical mono
         tmp_feature_amw = round(c(mSigma$avg_mass_ref1,mSigma$avg_mass_ref2),4) # Theoretical average
-        
+
         exp_feature_mmw = round(c(mSigma$mono_mass1, mSigma$mono_mass2), 4)
         exp_feature_amw = round(c(mSigma$avg_mass1, mSigma$avg_mass2), 4)
         exp_feature_ppm = round(c(mSigma$mono_ppm_dev1, mSigma$mono_ppm_dev2),2)
@@ -218,22 +217,22 @@ annotate_envelop<-function(envelop, ref_trans, IFL, ntheo){
         exp_feature_response = round(c(tmp_r1, tmp_r2), 0)
       }
   }}}
-  
+
   sd1$CPD = as.character(tmp_cpd)
   sd1$FORMULA = as.character(tmp_formula)
   sd1$SCORE = as.character(tmp_score)
   sd1$CPD = str_remove(sd1$CPD,"NA:")
-  
+
   sd1$FORMULA = str_remove(sd1$FORMULA,"NA:")
   sd1$SCORE = str_remove(sd1$SCORE,"NA:")
   sd1$CPD1 = as.character(tmp_cpd1)
   sd1$COEF = paste0(round(coef1,2), ":", round(coef2,2))
-  
-  sd2 =  cbind.data.frame(FEATURE = tmp_feature, FORMULA = tmp_feature_formula, 
+
+  sd2 =  cbind.data.frame(FEATURE = tmp_feature, FORMULA = tmp_feature_formula,
           THEO_MMW = tmp_feature_mmw, THEO_AMW = tmp_feature_amw,
           EXP_MMW = exp_feature_mmw, EXP_AMW = exp_feature_amw,
-          EXP_MMW_PPM = exp_feature_ppm, EXP_AMW_DEV = exp_feature_dev, 
-          SCORE = exp_feature_score, 
+          EXP_MMW_PPM = exp_feature_ppm, EXP_AMW_DEV = exp_feature_dev,
+          SCORE = exp_feature_score,
           RESPONSE = exp_feature_response,
           Envelop = tmp_feature_envelop)
 

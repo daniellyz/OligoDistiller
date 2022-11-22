@@ -30,7 +30,7 @@
 #' @export
 #'
 
-deconvolution1 <- function(scan_df, theor_ID_cmpd1, theor_ID_cmpd2, n_theor_peaks, expected_charge_range, matching_mass_accuracy, noise_threshold, deduplicate_fun, min_npeak_match = 6) {
+deconvolution1 <- function(scan_df, theor_ID_cmpd1, theor_ID_cmpd2, n_theor_peaks, expected_charge_range, matching_mass_accuracy, noise_threshold, deduplicate_fun, min_npeak_match = 3) {
 
   # Without giving mass value  
   # remove noisy peaks
@@ -127,26 +127,32 @@ deconvolution1 <- function(scan_df, theor_ID_cmpd1, theor_ID_cmpd2, n_theor_peak
         design_matrix <- get_design_matrix(X = cbind(cmpd1 = theor_ID_cmpd1_z_split[[z_ind]]$intensity, 
                                   cmpd2 = theor_ID_cmpd2_z_split[[z_ind]]$intensity),
                                   match_index = data$theor_ind, mass_diff = template_mass_diff, normalize = TRUE)
-        mod <- nls(I(mix - cmpd1) ~ exp(theta)/(1+exp(theta)) * I(cmpd2 - cmpd1), start = list("theta" = 0),
-                 data = cbind(mix = data$intensity, design_matrix))
-        mod_sum <- summary(mod)
         
-        cf <- mod_sum$coefficients[, 1]
-        prop <- exp(cf)/(1+exp(cf))
+        mod <- try(nls(I(mix - cmpd1) ~ exp(theta)/(1+exp(theta)) * I(cmpd2 - cmpd1), start = list("theta" = 0),
+                 data = cbind(mix = data$intensity, design_matrix)), silent = TRUE)
         
-        dc = as.numeric(design_matrix$cmpd1)
+        if (class(mod)!="try-error"){
+          
+          mod_sum <- summary(mod)
+          
+          cf <- mod_sum$coefficients[, 1]
+          prop <- exp(cf)/(1+exp(cf))
+          
+          dc = as.numeric(design_matrix$cmpd1)
+          
+          mod_fitted <- as.numeric(fitted(mod)) + na.omit(dc)
+          
+          N <- TIC / sum(mod_fitted)
+    
+          tmp_ind <- intersect(which(is.finite(data$intensity)), which(is.finite(mod_fitted)))
         
-        mod_fitted <- as.numeric(fitted(mod)) + na.omit(dc)
+          tmp_mpcse <- TIC*(data$intensity[tmp_ind] - mod_fitted[tmp_ind])^2/mod_fitted[tmp_ind]
+          
+          mpcse <- mean(tmp_mpcse[is.finite(tmp_mpcse)], na.rm = TRUE)
         
-        N <- TIC / sum(mod_fitted)
-  
-        tmp_ind <- intersect(which(is.finite(data$intensity)), which(is.finite(mod_fitted)))
-      
-        tmp_mpcse <- TIC*(data$intensity[tmp_ind] - mod_fitted[tmp_ind])^2/mod_fitted[tmp_ind]
-        
-        mpcse <- mean(tmp_mpcse[is.finite(tmp_mpcse)], na.rm = TRUE)
-      
-        results$by_charge[[z_ind]] <- c(estimate = prop, mpcse = mpcse)
+          results$by_charge[[z_ind]] <- c(estimate = prop, mpcse = mpcse)
+          
+        } else return(mod) 
   
       } else {results$by_charge[[z_ind]]  = c(estimate = 0, mpcse = 0)} 
       
@@ -155,7 +161,7 @@ deconvolution1 <- function(scan_df, theor_ID_cmpd1, theor_ID_cmpd2, n_theor_peak
       results$by_charge[[z_ind]]  = c(estimate = 1, mpcse = 0)
       
     } else if (length(data11$theor_ind) >= min_npeak_match & length(data12$theor_ind) < min_npeak_match) {
-      # the estimate value corresponds to the proportion of cmpd2, so in this case is 0
+      # the estimate value corresponds to the proportion of cmpd2, so in this case estimate should be set to 0
       results$by_charge[[z_ind]]  = c(estimate = 0, mpcse = 0)
     }
   }

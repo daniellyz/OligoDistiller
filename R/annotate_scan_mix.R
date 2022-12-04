@@ -9,7 +9,7 @@
 #' 
 
 annotate_scan_mix <- function(scan_processed_aggregated, ntheo = 10, formula_flp = "C192H239O117N73P18S4F8", cpd_flp = "Demo A",
-                      transformation_list = NULL, mdb = NULL, bblock = "DNA", min_overlap = 0.6, max_msigma = 10){
+                      transformation_list = NULL, mdb = NULL, bblock = "DNA", min_overlap = 0.6, max_msigma = 5, baseline = 1000){
   
   options(stringsAsFactors = F)
   features.targeted = features.untargeted = features_annotated = c()
@@ -18,7 +18,8 @@ annotate_scan_mix <- function(scan_processed_aggregated, ntheo = 10, formula_flp
   # Targeted screening:  
 
   scan.deconvoluted = scan_processed_aggregated
-  scan.deconvoluted.annotated = annotate_scan_targeted(scan.deconvoluted, formula_flp = formula_flp, cpd_flp = cpd_flp, transformation_list = transformation_list, mdb = mdb, ntheo = ntheo)
+  scan.deconvoluted.annotated = annotate_scan_targeted(scan.deconvoluted, formula_flp = formula_flp, cpd_flp = cpd_flp, transformation_list = transformation_list, mdb = mdb, 
+                                                       ntheo, min_overlap, max_msigma, baseline)
   features.targeted = scan.deconvoluted.annotated$feature
   scans.targeted = scan.deconvoluted.annotated$scan
   ind.target = which(scans.targeted$Envelop %in% features.targeted$Envelop)
@@ -33,7 +34,7 @@ annotate_scan_mix <- function(scan_processed_aggregated, ntheo = 10, formula_flp
   if (length(ind.rest)>=3){
       scan.deconvoluted.rest = scan.deconvoluted[ind.rest,,drop=FALSE]
       scan.deconvoluted.rest.anotated = annotate_scan_untargeted(
-        scan.deconvoluted.rest, bblock = bblock, ntheo = ntheo, min_overlap = min_overlap, max_msigma = max_msigma)
+        scan.deconvoluted.rest, bblock = bblock, ntheo = ntheo, min_overlap = min_overlap, max_msigma = max_msigma, baseline = baseline)
       
       features.untargeted = scan.deconvoluted.rest.anotated$feature
       scans.untargeted = scan.deconvoluted.rest.anotated$scan

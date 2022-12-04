@@ -52,30 +52,29 @@ shinyUI(navbarPage("OligoDistiller V.01",
                 radioButtons(
                   "OptionAnnotation",
                   "",
-                  c("Targeted and untargeted combined" = "C", 
-                    "Targeted with a database" = "TDB",
+                  c("Combined with a modification list" = "C1", 
+                    "Combined with a database" = "C2",
                     "Targeted with a modification list" = "T",
-                    "Untargeted with building blocks" = "UB",
-                    "Untargeted with Pointless algorithm" = "UP")
+                    "Untargeted with Pointless algorithm" = "U")
                 ),
                 
-                uiOutput('ParamAnnotation4n'),
-                uiOutput('ParamAnnotation4a'),
-                uiOutput('ParamAnnotation4b'),
-                uiOutput('ParamAnnotation4c'),
-                uiOutput('ParamAnnotation4k'),
-                uiOutput('ParamAnnotation4d'),
-                uiOutput('ParamAnnotation4m'),
-                uiOutput('ParamAnnotation0a'),
-                uiOutput('ParamAnnotation0b'),
-                uiOutput('ParamAnnotation1n'),
                 uiOutput('ParamAnnotation1a'),
                 uiOutput('ParamAnnotation1b'),
                 uiOutput('ParamAnnotation1c'),
-                uiOutput('ParamAnnotation2'),
-                uiOutput('ParamAnnotation2m'),
-                uiOutput('ParamAnnotation3'),
-                uiOutput('ParamAnnotation3m'),
+                uiOutput('ParamAnnotation1d'),
+                uiOutput('ParamAnnotation1e'),
+                uiOutput('ParamAnnotation1f'),
+                uiOutput('ParamAnnotation2a'),
+                uiOutput('ParamAnnotation2b'),
+                uiOutput('ParamAnnotation2c'),
+                uiOutput('ParamAnnotation2d'),
+                uiOutput('ParamAnnotation3a'),
+                uiOutput('ParamAnnotation3b'),
+                uiOutput('ParamAnnotation3c'),
+                uiOutput('ParamAnnotation3d'),
+                uiOutput('ParamAnnotation3e'),
+                uiOutput('ParamAnnotation4a'),
+                uiOutput('ParamAnnotation4b'),
                 
                 tags$head(
                   tags$style(HTML('#goButton{background-color:lightgreen}'))
@@ -109,12 +108,16 @@ shinyUI(navbarPage("OligoDistiller V.01",
                 br(),
                 dataTableOutput("table1"),
                 br(),
-                downloadButton("downloadScan", "Download"),
-                actionButton("clearRowSelection", "Clear row selection"),
+                downloadButton("downloadScan", "Download Deconvoluted Scan"),
                 br(),
                 br(),
-                plotlyOutput("DisplayDeconvoluted", height = 400, width = 800)
-                
+                downloadButton("downloadCharged", "Download peaks with charge"),
+                br(),
+                br(),
+                plotlyOutput("DisplayDeconvoluted", height = 400, width = 800),
+                br(),
+                br(),
+                plotlyOutput("DisplayCharged", height = 400, width = 800)
         ),
         
         tabPanel("C) Mass feature and annotations",
@@ -125,13 +128,10 @@ shinyUI(navbarPage("OligoDistiller V.01",
                  downloadButton("downloadFeature", "Download"),
                  br(),
                  br(),
-<<<<<<< HEAD
                  #plotlyOutput("DisplayRaw", height = 400, width = 600),
                  #br(),
                  #plotlyOutput("DisplayReconstructed", height = 400, width = 600),
                  #br()
-=======
->>>>>>> e7e099a74580dcb2778e8d45e1385011d848d7aa
                  plotlyOutput("DisplayRawAndReconstructed", height = 800, width = 800),
                  br()
         )

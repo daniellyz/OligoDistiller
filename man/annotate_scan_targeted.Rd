@@ -10,7 +10,10 @@ annotate_scan_targeted(
   cpd_flp = "Demo A",
   transformation_list = NULL,
   mdb = NULL,
-  ntheo = 12
+  ntheo = 12,
+  min_overlap = 0.6,
+  max_msigma = 3,
+  baseline = 1000
 )
 }
 \description{

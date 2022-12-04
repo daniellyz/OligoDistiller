@@ -13,7 +13,8 @@ annotate_scan_mix(
   mdb = NULL,
   bblock = "DNA",
   min_overlap = 0.6,
-  max_msigma = 10
+  max_msigma = 5,
+  baseline = 1000
 )
 }
 \description{

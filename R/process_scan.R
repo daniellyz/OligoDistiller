@@ -74,16 +74,27 @@ process_scan<-function(test.scan, polarity = c("Positive", "Negative"),  MSMS = 
       
       if (MSMS){frequent.feature = as.numeric(which(table(scan_processed$tmp_feature)>=1))}
       if (!MSMS){frequent.feature = as.numeric(which(table(scan_processed$tmp_feature)>1))}
-      scan_processed = scan_processed[which(scan_processed$tmp_feature %in% frequent.feature),,drop=FALSE]
       
+      scan_processed = scan_processed[which(scan_processed$tmp_feature %in% frequent.feature),,drop=FALSE]
+
       if (nrow(scan_processed)>3){
         
         scan_processed_aggregated = process_aggregation(scan_processed)
         scan_processed_aggregated$Envelop = cut_mmw_list1(scan_processed_aggregated$MW, scan_processed_aggregated$Response, mw_gap)$id
-      }}
+      
+        scan_charged = scan_processed[order(scan_processed[,1]),]
+        scan_charged = scan_charged[,1:4]
+      
+        scan_processed = data.frame(test.scan)
+        scan_processed$z = 0
+        scan_processed$MW = 0
+        valid = match(scan_charged[,1], scan_processed[,1])
+        scan_processed$z[valid] =  scan_charged$z
+        scan_processed$MW[valid] =  scan_charged$MW
+    }}
   }
   
-  return(scan_processed_aggregated)
+  return(list(scan_processed = scan_processed, scan_processed_aggregated = scan_processed_aggregated))
 }
 
 

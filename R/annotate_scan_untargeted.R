@@ -74,7 +74,7 @@ annotate_envelop_bb<-function(envelop, bblock, ntheo = 12, min_overlap = 0.6, ma
       tmp_avg_mw = sum(tmp_scan[,1] * tmp_scan[,2]/sum(tmp_scan[,2]))
     
       envelop_annotated$SCORE = max_msigma
-      envelop_annotated$OVERLAP = 1
+      envelop_annotated$OC_SCORE = 1
       envelop_annotated$MMW.Starter = c(1,0)
       envelop_annotated$AVG_MASS = c(round(tmp_avg_mw,4), 0)
       envelop_annotated$AVG_MASS_REF = 0
@@ -128,7 +128,7 @@ annotate_envelop_bb<-function(envelop, bblock, ntheo = 12, min_overlap = 0.6, ma
     # percent intensity explained and msigma
       
     envelop_annotated$SCORE = mSigma_list
-    envelop_annotated$OVERLAP = overlap_list
+    envelop_annotated$OC_SCORE = overlap_list
     envelop_annotated$MMW.Starter = 0
     envelop_annotated$AVG_MASS = avg_mass_list
     envelop_annotated$AVG_MASS_REF = avg_mass_ref_list
@@ -166,7 +166,7 @@ annotate_envelop_bb<-function(envelop, bblock, ntheo = 12, min_overlap = 0.6, ma
         tmp_feature_aw_ref = envelop_annotated$AVG_MASS_REF[inds[t]]
         tmp_feature_aw_dev = envelop_annotated$AVG_MASS_DEV[inds[t]]
         tmp_msigma = envelop_annotated$SCORE[inds[t]]
-        tmp_oc = envelop_annotated$OVERLAP[inds[t]]
+        tmp_oc = envelop_annotated$OC_SCORE[inds[t]]
         #tmp_feature_all_mw = paste0(round(tmp_scan[all_ind, 1],2), collapse = ":")
         
         tmp_sd = cbind.data.frame(FEATURE = paste0("E",envelop_annotated$Envelop[1], "T", t), FORMULA = "Unknown",
@@ -242,6 +242,7 @@ calcul_imp_mSigma_unknown <- function(sp_deconvoluted, theo_isotope, ntheo, base
   theo_list = theo_list/sum(theo_list)
   
   chi_squa_score = sum(abs(res_list-theo_list)/theo_list)/NT
+  if (is.null(chi_squa_score)){chi_squa_score = 100}
   
   # Compute evaluations:
   

@@ -12,7 +12,7 @@
 
 process_scan<-function(test.scan, polarity = c("Positive", "Negative"),  MSMS = F, baseline = 100,
                        min_charge = 3, max_charge = 12, min_mz = 500, max_mz = 1500, min_mw = 4000, max_mw = 12000, 
-                       mz_error = 0.02, mw_gap = 5){
+                       mz_error = 0.02, mw_gap = 1.1, mw_window = 10){
   
   options(stringsAsFactors = F)
   if (min_charge>max_charge){min_charge = max_charge-1}
@@ -80,7 +80,7 @@ process_scan<-function(test.scan, polarity = c("Positive", "Negative"),  MSMS = 
       if (nrow(scan_processed)>3){
         
         scan_processed_aggregated = process_aggregation(scan_processed)
-        scan_processed_aggregated$Envelop = cut_mmw_list1(scan_processed_aggregated$MW, scan_processed_aggregated$Response, mw_gap)$id
+        scan_processed_aggregated$Envelop = cut_mmw_list1(scan_processed_aggregated$MW, scan_processed_aggregated$Response, mw_gap, mw_window)$id
       
         scan_charged = scan_processed[order(scan_processed[,1]),]
         scan_charged = scan_charged[,1:4]
@@ -346,7 +346,7 @@ cut_mmw_list<-function(mwlist, intlist, mw_window){
   return(list(id = mw_feature, mw = mw_avg))
 }
 
-cut_mmw_list1<-function(mwlist, intlist, mw_window){
+cut_mmw_list1<-function(mwlist, intlist, mw_gap, mw_window){
   
   # Used to cluster/separate envelops!  
   
@@ -364,10 +364,11 @@ cut_mmw_list1<-function(mwlist, intlist, mw_window){
     best_mw = mwlist[ttt[which.max(intlist[ttt])]]
     max_mw = max(mwlist[ttt])
     ratio_int = intlist[k]/intlist[k-1]
+    if (k>2){ratio_int0 =  intlist[k-1]/intlist[k-2]} else {ratio_int0 = 2}
     
-    if ((mwlist[k] - min_mw > 2*mw_window & ratio_int>1) 
-        || (mwlist[k] - best_mw > mw_window  & ratio_int>1) 
-        || (mwlist[k] - max_mw >1.1)){
+    if ((mwlist[k] - best_mw > mw_window/2*1.1  & ratio_int>1.1 & ratio_int0>1.1) 
+        || (mwlist[k] - min_mw > mw_window*1.1  & ratio_int>1.1 & ratio_int0>1.1) 
+        || (mwlist[k] - max_mw >mw_gap*1.1)){
       mw_feature[t0:(k-1)] = f
       mw_avg[t0:(k-1)] = round(best_mw, 4)
       f = f + 1

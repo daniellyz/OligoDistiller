@@ -9,7 +9,7 @@
 #' 
 
 annotate_scan_mix <- function(scan_processed_aggregated, ntheo = 10, formula_flp = "C192H239O117N73P18S4F8", cpd_flp = "Demo A",
-                      transformation_list = NULL, mdb = NULL, bblock = "DNA", min_overlap = 0.6, max_msigma = 5, baseline = 1000){
+                      transformation_list = NULL, mdb = NULL, bblock = "DNA", min_overlap = 0.6, max_msigma = 5, max_mmw_ppm = 10, baseline = 1000){
   
   options(stringsAsFactors = F)
   features.targeted = features.untargeted = features_annotated = c()
@@ -19,9 +19,10 @@ annotate_scan_mix <- function(scan_processed_aggregated, ntheo = 10, formula_flp
 
   scan.deconvoluted = scan_processed_aggregated
   scan.deconvoluted.annotated = annotate_scan_targeted(scan.deconvoluted, formula_flp = formula_flp, cpd_flp = cpd_flp, transformation_list = transformation_list, mdb = mdb, 
-                                                       ntheo, min_overlap, max_msigma, baseline)
+                                                       ntheo, min_overlap, max_msigma, max_mmw_ppm, baseline)
   features.targeted = scan.deconvoluted.annotated$feature
   scans.targeted = scan.deconvoluted.annotated$scan
+  
   ind.target = which(scans.targeted$Envelop %in% features.targeted$Envelop)
   if (length(ind.target)>0){scans.targeted = scans.targeted[ind.target,,drop=FALSE]}
   

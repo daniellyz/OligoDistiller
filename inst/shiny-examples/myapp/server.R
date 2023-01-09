@@ -52,16 +52,16 @@ shinyServer(function(input, output,clientData, session){
   
   output$ParamAnnotation1f <- renderUI({
     if (input$OptionAnnotation == "C1"){
-      numericInput("mSigma1", "Maximum isotopic pattern fit deviation (mSigma):", 10, min = 0.5, max = 50)
+      numericInput("mSigma1", "Maximum isotopic pattern fit deviation (mSigma):", 5, min = 0.5, max = 10)
     }
   })
   
   output$downloadTrans1 <- downloadHandler(
     filename = function() {
-      "Transformation_list.txt"
+      "Transformation_list_jennifer_shortened.txt"
     },
     content = function(file) {
-      data = read.csv("https://raw.githubusercontent.com/daniellyz/MESSAR/master/MESSAR_WEBSERVER_DEMO/Transformation_list.txt", sep = "\t", header=T, stringsAsFactors = F)
+      data = read.csv("https://raw.githubusercontent.com/daniellyz/MESSAR/master/MESSAR_WEBSERVER_DEMO/Transformation_list_jennifer_shortened.txt", sep = "\t", header=T, stringsAsFactors = F)
       write.table(data, file, quote = F, col.names = T, row.names = F, sep = "\t")
     }
   )
@@ -86,7 +86,7 @@ shinyServer(function(input, output,clientData, session){
   
   output$ParamAnnotation2d <- renderUI({
     if (input$OptionAnnotation == "C2"){
-      numericInput("mSigma2", "Maximum isotopic pattern fit deviation (mSigma):", 10, min = 0.5, max = 50)
+      numericInput("mSigma2", "Maximum isotopic pattern fit deviation (mSigma):", 5, min = 0.5, max = 20)
     }
   })
   
@@ -132,10 +132,10 @@ shinyServer(function(input, output,clientData, session){
   
   output$downloadTrans3 <- downloadHandler(
     filename = function() {
-      "Transformation_list.txt"
+      "Transformation_list_jennifer_shortened.txt"
     },
     content = function(file) {
-      data = read.csv("https://raw.githubusercontent.com/daniellyz/MESSAR/master/MESSAR_WEBSERVER_DEMO/Transformation_list.txt", sep = "\t", header=T, stringsAsFactors = F)
+      data = read.csv("Transformation_list_jennifer_shortened.txt", sep = "\t", header=T, stringsAsFactors = F)
       write.table(data, file, quote = F, col.names = T, row.names = F, sep = "\t")
     }
   )
@@ -148,7 +148,7 @@ shinyServer(function(input, output,clientData, session){
   
   output$ParamAnnotation4b <- renderUI({
     if (input$OptionAnnotation == "U"){
-      numericInput("mSigma4", "Maximum isotopic pattern fit deviation (mSigma):", 3, min = 0.5, max = 10)
+      numericInput("mSigma4", "Maximum isotopic pattern fit deviation (mSigma):", 5, min = 0.5, max = 10)
     }
   })
   
@@ -245,16 +245,20 @@ shinyServer(function(input, output,clientData, session){
       mw_range = input$mw_range
       baseline = input$baseline
       mz_error = input$mz_error
-      mw_gap = input$mw_gap
-      ntheo = mw_gap
-      
-      if (input$MSMS){min_overlap = 0.5 # Less strict filter for MS2 data
-      } else {min_overlap = 0.7}
+      ntheo = input$ntheo
+
+      if (input$MSMS){
+        min_overlap = 0.4 # Less strict filter for MS2 data
+        max_mmw_ppm = 10 # More tolerance on monoisotopic mass
+      } else {
+        min_overlap = 0.6
+        max_mmw_ppm = 5 # More tolerance on monoisotopic mass
+      }
       
       output_process = process_scan(scan, polarity = polarity, MSMS = msms, baseline = baseline, 
                 min_charge = charge_range[1], max_charge = charge_range[2], 
                 min_mz = mz_range[1], max_mz = mz_range[2], min_mw = mw_range[1], max_mw = mw_range[2] , 
-                mz_error = 0.01, mw_gap = mw_gap)
+                mz_error = 0.01, mw_gap = 1.1, mw_window = ntheo + 1)
       
       scan.deconvoluted = output_process$scan_processed_aggregated
       scan.processed = output_process$scan_processed
@@ -272,7 +276,7 @@ shinyServer(function(input, output,clientData, session){
           transformation_list = read.csv(mTrans$datapath, sep = "\t", header = T)
           scan.deconvoluted.annotated = annotate_scan_targeted(
             scan.deconvoluted, formula_flp = mFormula, cpd_flp = mCPD, transformation_list, mdb = NULL, ntheo = ntheo,
-            min_overlap = min_overlap, max_msigma = mSigma, baseline = baseline)
+            min_overlap = min_overlap, max_msigma = mSigma, max_mmw_ppm = max_mmw_ppm, baseline = baseline)
         }}
       
       if (input$OptionAnnotation == "U"){
@@ -301,7 +305,7 @@ shinyServer(function(input, output,clientData, session){
           scan.deconvoluted.annotated =  annotate_scan_mix(scan.deconvoluted, ntheo = ntheo, 
                         formula_flp = mFormula, cpd_flp = mCPD,
                         transformation_list = transformation_list, mdb = NULL, bblock = bblock, 
-                        min_overlap = min_overlap, max_msigma = mSigma, baseline = baseline)
+                        min_overlap = min_overlap, max_msigma = mSigma, max_mmw_ppm = max_mmw_ppm, baseline = baseline)
         }
       }
         
@@ -318,7 +322,7 @@ shinyServer(function(input, output,clientData, session){
           scan.deconvoluted.annotated =  annotate_scan_mix(scan.deconvoluted, ntheo = ntheo, 
               formula_flp = "", cpd_flp = "",
               transformation_list = NULL, mdb = mDB, bblock = bblock, 
-              min_overlap = min_overlap, max_msigma = mSigma, baseline = baseline)
+              min_overlap = min_overlap, max_msigma = mSigma, max_mmw_ppm=  max_mmw_ppm, baseline = baseline)
       }
     }
     

@@ -45,7 +45,7 @@ shinyUI(navbarPage("OligoDistiller V.01",
                 h3("MS Processing parameters:"),
                 numericInput("baseline", h4("MS spectral baseline"), 100, 0, 10000, 100),
                 numericInput("mz_error", h4("MS measurement error (Da)"), 0.01, 0, 0.1, 0.005),
-                numericInput("mw_gap", h4("Estimated isotope envelop size (Da)"), 10, 0, 20, 1),
+                numericInput("ntheo", h4("Estimated isotope envelop size (Da)"), 10, 0, 20, 1),
         
                 br(),
                 h3("Annotation parameters:"),

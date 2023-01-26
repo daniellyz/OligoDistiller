@@ -2,7 +2,7 @@ options(warn=-1)
 options(shiny.maxRequestSize = 3000*1024^2)
 options(stringsAsFactors = F)
 #options(shiny.error = recover) 
-
+library(OligoDistiller)
 library(shiny)
 library(V8)
 library(shinyjs)
@@ -10,7 +10,7 @@ library(DT, quietly = TRUE)
 library(plotly)
 
 shinyServer(function(input, output,clientData, session){
-
+  
   observeEvent(input$killButton,{
     refresh()})
   
@@ -157,7 +157,7 @@ shinyServer(function(input, output,clientData, session){
     query_spectrum = NULL
     valid = 1
     mms = ""
-
+    
     if (input$blank_file1==""){
       mms="Please paste your mass peaks!"
       valid = 0
@@ -226,13 +226,13 @@ shinyServer(function(input, output,clientData, session){
   })  
   
   process <- eventReactive(input$goButton,{
-
+    
     results = NULL
     mms = ""
     scan = read_MS()$query_spectrum 
     
     if (!is.null(scan)){
-
+      
       is_negative = input$polarity
       msms = input$MSMS
       
@@ -246,25 +246,24 @@ shinyServer(function(input, output,clientData, session){
       baseline = input$baseline
       mz_error = input$mz_error
       ntheo = input$ntheo
-
+      max_mmw_ppm = input$ppm_error # More tolerance on monoisotopic mass
+      
       if (input$MSMS){
         min_overlap = 0.4 # Less strict filter for MS2 data
-        max_mmw_ppm = 10 # More tolerance on monoisotopic mass
       } else {
         min_overlap = 0.6
-        max_mmw_ppm = 5 # More tolerance on monoisotopic mass
       }
       
       output_process = process_scan(scan, polarity = polarity, MSMS = msms, baseline = baseline, 
-                min_charge = charge_range[1], max_charge = charge_range[2], 
-                min_mz = mz_range[1], max_mz = mz_range[2], min_mw = mw_range[1], max_mw = mw_range[2] , 
-                mz_error = 0.01, mw_gap = 1.1, mw_window = ntheo + 1)
-      
+                                    min_charge = charge_range[1], max_charge = charge_range[2], 
+                                    min_mz = mz_range[1], max_mz = mz_range[2], min_mw = mw_range[1], max_mw = mw_range[2] , 
+                                    mz_error = 0.01, mw_gap = 1.1, mw_window = ntheo + 1)
+
       scan.deconvoluted = output_process$scan_processed_aggregated
       scan.processed = output_process$scan_processed
       
       scan.deconvoluted.annotated = NULL
-    
+      
       if (input$OptionAnnotation == "T"){
         
         mTrans = input$mTrans3
@@ -284,7 +283,7 @@ shinyServer(function(input, output,clientData, session){
         bblock = input$FLP_type4
         mSigma = input$mSigma4
         baseline = input$baseline
-
+        
         if (!is.null(bblock) & !is.null(mSigma)){
           scan.deconvoluted.annotated = annotate_scan_untargeted(scan.deconvoluted, bblock, ntheo, min_overlap, mSigma, baseline)
         }
@@ -303,12 +302,12 @@ shinyServer(function(input, output,clientData, session){
           
           transformation_list = read.csv(mTrans$datapath, sep = "\t", header = T)
           scan.deconvoluted.annotated =  annotate_scan_mix(scan.deconvoluted, ntheo = ntheo, 
-                        formula_flp = mFormula, cpd_flp = mCPD,
-                        transformation_list = transformation_list, mdb = NULL, bblock = bblock, 
-                        min_overlap = min_overlap, max_msigma = mSigma, max_mmw_ppm = max_mmw_ppm, baseline = baseline)
+                                                           formula_flp = mFormula, cpd_flp = mCPD,
+                                                           transformation_list = transformation_list, mdb = NULL, bblock = bblock, 
+                                                           min_overlap = min_overlap, max_msigma = mSigma, max_mmw_ppm = max_mmw_ppm, baseline = baseline)
         }
       }
-        
+      
       if (input$OptionAnnotation == "C2"){
         
         mDB = input$mDB2
@@ -320,29 +319,29 @@ shinyServer(function(input, output,clientData, session){
           
           mDB = read.csv(mDB$datapath, sep = "\t", header = T)
           scan.deconvoluted.annotated =  annotate_scan_mix(scan.deconvoluted, ntheo = ntheo, 
-              formula_flp = "", cpd_flp = "",
-              transformation_list = NULL, mdb = mDB, bblock = bblock, 
-              min_overlap = min_overlap, max_msigma = mSigma, max_mmw_ppm=  max_mmw_ppm, baseline = baseline)
+                                                           formula_flp = "", cpd_flp = "",
+                                                           transformation_list = NULL, mdb = mDB, bblock = bblock, 
+                                                           min_overlap = min_overlap, max_msigma = mSigma, max_mmw_ppm=  max_mmw_ppm, baseline = baseline)
+        }
       }
-    }
-    
-    if (!is.null(scan.deconvoluted)){
-      mms = paste0("Analysis finished! Please check next tabpanel(s)!")
-    } else {mms = "No oligonucleotide feature detected!"}
-
-     list(results0 = scan.processed, results1 = scan.deconvoluted, results2 = scan.deconvoluted.annotated, message = mms)
+      
+      if (!is.null(scan.deconvoluted)){
+        mms = paste0("Analysis finished! Please check next tabpanel(s)!")
+      } else {mms = "No oligonucleotide feature detected!"}
+      
+      list(results0 = scan.processed, results1 = scan.deconvoluted, results2 = scan.deconvoluted.annotated, message = mms)
     }
   })
-
+  
   observeEvent(input$goButton,{
-
+    
     withProgress({
       setProgress(message="Deconvoluting and annotating data...")
       Sys.sleep(1)
       setProgress(message=process()$message)
     })
   })
-
+  
   output$blank_message1<-renderText({process()$message})
   
   output$table1 <- renderDataTable({
@@ -369,7 +368,7 @@ shinyServer(function(input, output,clientData, session){
       if (!is.null(results1)){
         write.csv(results1, file, sep=",",col.names = T, row.names= F, quote = FALSE)
       }
-  })
+    })
   
   output$downloadCharged <- downloadHandler(
     filename = function() {"Original_scan_with_charge.csv"},
@@ -442,18 +441,18 @@ shinyServer(function(input, output,clientData, session){
       
     }
   })
-
+  
   output$table2 <- renderDataTable({
-
+    
     results_table2 = NULL
     results2 = process()$results2$feature
-
+    
     if (!is.null(results2)){
-        results_table2 = datatable(results2,escape=rep(FALSE, ncol(results2)), rownames = F, selection = 'single')
+      results_table2 = datatable(results2,escape=rep(FALSE, ncol(results2)), rownames = F, selection = 'single')
     }
     return(results_table2)
   })
-
+  
   output$downloadFeature <- downloadHandler(
     filename = function() {"Molecular_feature.csv"},
     content = function(file) {
@@ -463,7 +462,7 @@ shinyServer(function(input, output,clientData, session){
       }
     }
   )
-
+  
   output$DisplayRawAndReconstructed <- renderPlotly({
     results <- process()$results2
     if (!is.null(results)) {
@@ -480,7 +479,7 @@ shinyServer(function(input, output,clientData, session){
       if (input$OptionAnnotation == "C2") {mode <- "mixed"}
       
       yyy <- reconstruct_scan_annotated(test.scan, results, polarity = polarity, 
-                              mode = mode, mz_error = input$mz_error, ntheo = ntheo)
+                                        mode = mode, mz_error = input$mz_error, ntheo = ntheo)
       original_sp <- yyy$original_scan
       reconstructed_sp <- yyy$reconstructed_scan
       idx <- input$table2_rows_selected

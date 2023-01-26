@@ -53,7 +53,7 @@ annotate_scan_targeted<-function(scan_processed_aggregated, formula_flp = "C192H
       inds = which(scan_processed_aggregated$Envelop==i)
       if (length(inds)>=2){ # At least 2 peaks in the envelop
         envelop = scan_processed_aggregated[inds,]
-        results = annotate_envelop(envelop, transformation_list, IFL, ntheo = ntheo, baseline = baseline, min_overlap = min_overlap)
+        results = annotate_envelop(envelop, transformation_list, IFL, ntheo = ntheo, baseline = baseline, min_overlap = min_overlap, max_mmw_ppm = max_mmw_ppm)
         
         scan_annotated = rbind.data.frame(scan_annotated,results$envelop.annotated)
         features_annotated = rbind.data.frame(features_annotated, results$features.annotated)
@@ -85,7 +85,7 @@ annotate_scan_targeted<-function(scan_processed_aggregated, formula_flp = "C192H
 ####Annotate envelops by searching database###
 ##############################################
 
-annotate_envelop<-function(envelop, ref_trans, IFL, ntheo, baseline, min_overlap){
+annotate_envelop<-function(envelop, ref_trans, IFL, ntheo, baseline, min_overlap, max_mmw_ppm){
   
   # Envelop annotation:
   
@@ -135,7 +135,7 @@ annotate_envelop<-function(envelop, ref_trans, IFL, ntheo, baseline, min_overlap
     
     ifl = IFL[[valid]]
     theo_isotope <- useBRAIN(aC = ifl, nrPeaks = ntheo)
-    mSigma = calcul_imp_mSigma(tmp_scan, theo_isotope, ntheo, baseline)
+    mSigma = calcul_imp_mSigma(tmp_scan, theo_isotope, ntheo, max_mmw_ppm, baseline)
     coef1 = 1
     coef2 = 0
   }
@@ -155,13 +155,15 @@ annotate_envelop<-function(envelop, ref_trans, IFL, ntheo, baseline, min_overlap
     ifl2 = IFL[[valid[2]]]
     theo_isotope1 <- useBRAIN(aC = ifl1, nrPeaks = ntheo)
     theo_isotope2 <- useBRAIN(aC = ifl2, nrPeaks = ntheo)
-  
+    
+    abs_dev = max_mmw_ppm/1000000*median(tmp_scan[,1])
+    
     optim <- try(deconvolution1(scan_df = tmp_scan1,
                         theor_ID_cmpd1 = theo_isotope1,
                         theor_ID_cmpd2 = theo_isotope2,
                         n_theor_peaks = ntheo,
                         expected_charge_range = 1,
-                        matching_mass_accuracy = 0.15,
+                        matching_mass_accuracy = abs_dev,
                         noise_threshold = 0,
                         deduplicate_fun = "max"
                   ), silent = F)
@@ -181,17 +183,17 @@ annotate_envelop<-function(envelop, ref_trans, IFL, ntheo, baseline, min_overlap
       }}
     
     if (coef1>0 & coef2>0){
-      mSigma = calcul_mix_mSigma(tmp_scan, theo_isotope1, theo_isotope2, coef1, coef2, ntheo, baseline)
+      mSigma = calcul_mix_mSigma(tmp_scan, theo_isotope1, theo_isotope2, coef1, coef2, ntheo, max_mmw_ppm, baseline)
     }
     if (coef1>0 & coef2==0){
       coef1 = 1
       valid = valid[1]
-      mSigma = calcul_imp_mSigma(tmp_scan, theo_isotope1, ntheo, baseline)
+      mSigma = calcul_imp_mSigma(tmp_scan, theo_isotope1, ntheo, max_mmw_ppm, baseline)
     }
     if (coef1==0 & coef2>0){
       coef2 = 1
       valid = valid[2]
-      mSigma = calcul_imp_mSigma(tmp_scan, theo_isotope2, ntheo, baseline)
+      mSigma = calcul_imp_mSigma(tmp_scan, theo_isotope2, ntheo, max_mmw_ppm, baseline)
     }
   }
   
@@ -308,7 +310,7 @@ annotate_envelop<-function(envelop, ref_trans, IFL, ntheo, baseline, min_overlap
 ### Isotope evaluation functions single and mixed ###
 #####################################################
 
-calcul_imp_mSigma <- function(sp_deconvoluted, theo_isotope, ntheo, baseline){
+calcul_imp_mSigma <- function(sp_deconvoluted, theo_isotope, ntheo, max_mmw_ppm, baseline){
   
   # Evaluate isotope patterns
   # sp_deconvoluted: m/z, intensity two column matrix
@@ -330,10 +332,11 @@ calcul_imp_mSigma <- function(sp_deconvoluted, theo_isotope, ntheo, baseline){
   em_list = rep(1, NT) # Dalton error from matched isotope
   res_list = rep(baseline/2, NT) # Response list from matched isotope
   exp_list = rep(0, NT) # Experimental mass, one-to-one matched to theoritical
+  abs_dev = max_mmw_ppm/1000000*median(sp_deconvoluted[,1])
   
   for (j in 1:NT){
     errors = abs(sp_deconvoluted$MW - theo_deconvoluted$MW[j])
-    valid = which(errors<0.15)
+    valid = which(errors<abs_dev)
     if (length(valid)>1){valid = which.min(errors)}
     if (length(valid)==1){
       em_list[j] = errors[valid]
@@ -385,7 +388,7 @@ calcul_imp_mSigma <- function(sp_deconvoluted, theo_isotope, ntheo, baseline){
   } 
 }
 
-calcul_mix_mSigma <- function(sp_deconvoluted, theo_isotope1, theo_isotope2, coef1, coef2, ntheo, baseline){
+calcul_mix_mSigma <- function(sp_deconvoluted, theo_isotope1, theo_isotope2, coef1, coef2, ntheo, max_mmw_ppm, baseline){
   
   # Evaluate isotope patterns
   # dat: m/z, intensity two column matrix
@@ -431,10 +434,11 @@ calcul_mix_mSigma <- function(sp_deconvoluted, theo_isotope1, theo_isotope2, coe
   res_list1 = exp_list1 = rep(baseline/2, NT1) # Response list from matched isotope
   res_list2 = exp_list2 = rep(baseline/2, NT2) # Experimental mass
   res_list = exp_list = rep(baseline/2, NT)
-  
+  abs_dev = max_mmw_ppm/1000000*median(sp_deconvoluted[,1])
+
   for (j in 1:NT1){
     errors = abs(sp_deconvoluted$MW - theo_deconvoluted1$MW[j])
-    valid = which(errors<0.15)
+    valid = which(errors<abs_dev)
     if (length(valid)>1){valid = which.min(errors)}
     if (length(valid)==1){
       em_list1[j] = errors[valid]
@@ -444,7 +448,7 @@ calcul_mix_mSigma <- function(sp_deconvoluted, theo_isotope1, theo_isotope2, coe
   
   for (j in 1:NT2){
     errors = abs(sp_deconvoluted$MW - theo_deconvoluted2$MW[j])
-    valid = which(errors<0.15)
+    valid = which(errors<abs_dev)
     if (length(valid)>1){valid = which.min(errors)}
     if (length(valid)==1){
       em_list2[j] = errors[valid]
@@ -454,7 +458,7 @@ calcul_mix_mSigma <- function(sp_deconvoluted, theo_isotope1, theo_isotope2, coe
   
   for (j in 1:NT){
     errors = abs(sp_deconvoluted$MW - theo_deconvoluted_mixed$MW[j])
-    valid = which(errors<0.15)
+    valid = which(errors<abs_dev)
     if (length(valid)>1){valid = which.min(errors)}
     if (length(valid)==1){
       em_list[j] = errors[valid]

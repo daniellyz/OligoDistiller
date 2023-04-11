@@ -4,11 +4,12 @@
 #' 
 #' @author Youzhong Liu, \email{YLiu186@ITS.JNJ.com}
 #' 
+#' @importFrom BRAIN useBRAIN
 #' @export
 #' 
 
 annotate_scan_untargeted<-function(scan_processed_aggregated, bblock, ntheo = 12, 
-                                   min_overlap = 0.6, max_msigma = 10, baseline = 1000){
+          min_overlap = 0.6, max_msigma = 10, max_mmw_ppm = 10, baseline = 1000){
   
   # Annotate envelop
   
@@ -21,7 +22,7 @@ annotate_scan_untargeted<-function(scan_processed_aggregated, bblock, ntheo = 12
       inds = which(scan_processed_aggregated$Envelop==i)
       if (length(inds)>=2){ # At least 2 peaks in the envelop
         envelop = scan_processed_aggregated[inds,]
-        results = annotate_envelop_bb(envelop, bblock, ntheo, min_overlap, max_msigma, baseline)
+        results = annotate_envelop_bb(envelop, bblock, ntheo, min_overlap, max_msigma, max_mmw_ppm, baseline)
         features_annotated = rbind.data.frame(features_annotated, results$features.annotated)
         scan_annotated = rbind.data.frame(scan_annotated,results$envelop.annotated)
       }
@@ -40,7 +41,7 @@ annotate_scan_untargeted<-function(scan_processed_aggregated, bblock, ntheo = 12
 ####Annotate envelops by pattern matching from a building block ###
 ###################################################################
 
-annotate_envelop_bb<-function(envelop, bblock, ntheo = 12, min_overlap = 0.6, max_msigma = 5, baseline =  1000){
+annotate_envelop_bb<-function(envelop, bblock, ntheo = 12, min_overlap = 0.6, max_msigma = 5, max_mmw_ppm=10, baseline =  1000){
   
   # Filter envelop:
   
@@ -107,14 +108,14 @@ annotate_envelop_bb<-function(envelop, bblock, ntheo = 12, min_overlap = 0.6, ma
       
       MW01 = mw0_s1[s]
       if (bblock %in% c("DNA", "RNA")){
-        theo_isotope1 <- brain_from_pointless(type = bblock, MW01, ntheo)
+        theo_isotope1 <- brain_from_pointless1(type = bblock, MW01, ntheo)
       } else {
         theo_isotope1 <- brain_from_bblock(bblock, MW01, ntheo)
       }
       
       # Evaluate 
       
-      mSigma = calcul_imp_mSigma_unknown(tmp_scan, theo_isotope1, ntheo, baseline)
+      mSigma = calcul_imp_mSigma_unknown(tmp_scan, theo_isotope1, ntheo, baseline, max_mmw_ppm)
 
       mSigma_list[s] = round(mSigma$score,2)
       overlap_list[s] = round(mSigma$oc_score,2)
@@ -189,7 +190,7 @@ annotate_envelop_bb<-function(envelop, bblock, ntheo = 12, min_overlap = 0.6, ma
 ### Isotope evaluation functions###
 ###################################
 
-calcul_imp_mSigma_unknown <- function(sp_deconvoluted, theo_isotope, ntheo, baseline){
+calcul_imp_mSigma_unknown <- function(sp_deconvoluted, theo_isotope, ntheo, baseline, max_mmw_ppm){
   
   # Evaluate isotope patterns
   # sp_deconvoluted: m/z, intensity two column matrix
@@ -213,10 +214,11 @@ calcul_imp_mSigma_unknown <- function(sp_deconvoluted, theo_isotope, ntheo, base
   em_list = rep(1, NT) # Dalton error from matched isotope
   res_list = rep(baseline/2, NT) # Response list from matched isotope
   exp_list = rep(0, NT) # Experimental mass
+  abs_dev = max_mmw_ppm/1000000*median(sp_deconvoluted[,1])
   
   for (j in 1:NT){
     errors = abs(sp_deconvoluted$MW - theo_deconvoluted$MW[j])
-    valid = which(errors<0.15)
+    valid = which(errors<abs_dev)
     if (length(valid)>1){valid = which.min(errors)}
     if (length(valid)==1){
       em_list[j] = errors[valid]
@@ -234,6 +236,7 @@ calcul_imp_mSigma_unknown <- function(sp_deconvoluted, theo_isotope, ntheo, base
   #oc1 = sum(res_list[idx])/sum(sp_deconvoluted[,2]) # Unnormalized
   #oc2 = sum(theo_deconvoluted$I[idx])/sum(theo_deconvoluted$I)
   #oc_score = 2*(oc1*oc2)/(oc1+oc2)
+  
   oc1 = length(idx)/nrow(sp_deconvoluted)
   oc2 =  length(idx)/NT
   oc_score = 2*(oc1*oc2)/(oc1+oc2)
@@ -291,7 +294,7 @@ brain_from_bblock<-function(bblock, MW0, ntheo = 12){
 ### Estimate isotope shape using pointness for DNA ###
 ######################################################
 
-brain_from_pointless <- function(type, mass, ntheo = 12) {
+brain_from_pointless1 <- function(type, mass, ntheo = 12) {
   
   nbPeaks = ntheo
     

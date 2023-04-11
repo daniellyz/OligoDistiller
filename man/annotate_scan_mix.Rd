@@ -14,6 +14,7 @@ annotate_scan_mix(
   bblock = "DNA",
   min_overlap = 0.6,
   max_msigma = 5,
+  max_mmw_ppm = 10,
   baseline = 1000
 )
 }

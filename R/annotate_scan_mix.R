@@ -35,7 +35,7 @@ annotate_scan_mix <- function(scan_processed_aggregated, ntheo = 10, formula_flp
   if (length(ind.rest)>=3){
       scan.deconvoluted.rest = scan.deconvoluted[ind.rest,,drop=FALSE]
       scan.deconvoluted.rest.anotated = annotate_scan_untargeted(
-        scan.deconvoluted.rest, bblock = bblock, ntheo = ntheo, min_overlap = min_overlap, max_msigma = max_msigma, baseline = baseline)
+        scan.deconvoluted.rest, bblock = bblock, ntheo = ntheo, min_overlap = min_overlap, max_msigma = max_msigma, max_mmw_ppm = max_mmw_ppm, baseline = baseline)
       
       features.untargeted = scan.deconvoluted.rest.anotated$feature
       scans.untargeted = scan.deconvoluted.rest.anotated$scan

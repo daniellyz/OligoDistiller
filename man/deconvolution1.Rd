@@ -12,8 +12,7 @@ deconvolution1(
   expected_charge_range,
   matching_mass_accuracy,
   noise_threshold,
-  deduplicate_fun,
-  min_npeak_match = 3
+  deduplicate_fun
 )
 }
 \arguments{

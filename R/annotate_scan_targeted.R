@@ -153,6 +153,7 @@ annotate_envelop<-function(envelop, ref_trans, IFL, ntheo, baseline, min_overlap
     colnames(tmp_scan1) = c("mz", "intensity")
     ifl1 = IFL[[valid[1]]]
     ifl2 = IFL[[valid[2]]]
+    
     theo_isotope1 <- useBRAIN(aC = ifl1, nrPeaks = ntheo)
     theo_isotope2 <- useBRAIN(aC = ifl2, nrPeaks = ntheo)
     

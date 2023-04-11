@@ -10,6 +10,7 @@ annotate_scan_untargeted(
   ntheo = 12,
   min_overlap = 0.6,
   max_msigma = 10,
+  max_mmw_ppm = 10,
   baseline = 1000
 )
 }

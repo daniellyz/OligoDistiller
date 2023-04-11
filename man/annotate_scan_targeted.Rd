@@ -13,6 +13,7 @@ annotate_scan_targeted(
   ntheo = 12,
   min_overlap = 0.6,
   max_msigma = 3,
+  max_mmw_ppm = 10,
   baseline = 1000
 )
 }

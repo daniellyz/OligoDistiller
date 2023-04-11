@@ -16,7 +16,8 @@ process_scan(
   min_mw = 4000,
   max_mw = 12000,
   mz_error = 0.02,
-  mw_gap = 5
+  mw_gap = 1.1,
+  mw_window = 10
 )
 }
 \description{

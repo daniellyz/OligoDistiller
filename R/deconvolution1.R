@@ -91,6 +91,7 @@ deconvolution1 <- function(scan_df, theor_ID_cmpd1, theor_ID_cmpd2, n_theor_peak
     # match (in the mz dimension) observed peaks to the theoretical isotope distribution (given by ID_match)
     data <- align_peaks(data = isotopes_z_split[[z_ind]][,-1], 
                         bound = alignment_mz_bounds_z_split[[z_ind]][,-1])
+    
     if (nrow(data)>0){    
       
       # if multiple observed peaks correspond to one theoretical peaks, take the most abundant one
@@ -99,6 +100,7 @@ deconvolution1 <- function(scan_df, theor_ID_cmpd1, theor_ID_cmpd2, n_theor_peak
       # sum=1 normalization
       data$intensity <- data$intensity/TIC
       # create design matrix (with leading and trailing zeroes that correspond to the mass difference between templates)
+      
       design_matrix <- get_design_matrix(X = cbind(cmpd1 = theor_ID_cmpd1_z_split[[z_ind]]$intensity, 
                                                    cmpd2 = theor_ID_cmpd2_z_split[[z_ind]]$intensity),
                                          match_index = data$theor_ind, mass_diff = template_mass_diff, normalize = TRUE)
@@ -185,9 +187,12 @@ deduplicate_peaks <- function(data, method){
 }
 
 get_design_matrix <- function(X, match_index, mass_diff, normalize = TRUE) {
+  
+  #options(show.error.messages = FALSE)
+  
   if (abs(mass_diff) != floor(abs(mass_diff))) stop("mass_diff is not integer")
   if (abs(mass_diff) >= length(match_index)) stop("there is no overlap")
-  if (length(match_index) < 2) stop("The length of match_index should be >= 2")
+  if (length(match_index) < 2) {stop("The length of match_index should be >= 2")}
   
   if (mass_diff > 0) {
     cmpd2 = c(X[1 : (nrow(X)-mass_diff), "cmpd2"], rep(0, mass_diff))
@@ -200,6 +205,9 @@ get_design_matrix <- function(X, match_index, mass_diff, normalize = TRUE) {
   }
   out <- tibble(cmpd1 = cmpd1, cmpd2 = cmpd2)
   if (normalize) out <- map_dfc(out, ~norm(.x))
+  
+  #options(show.error.messages = T)
+  
   return(out)
   
 }

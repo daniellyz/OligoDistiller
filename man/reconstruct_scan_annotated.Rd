@@ -10,6 +10,7 @@ reconstruct_scan_annotated(
   polarity = "Negative",
   mode = c("targeted", "untargeted", "mixed"),
   mz_error = 0.01,
+  input_charges = 5:12,
   bblock = "C21 H26.4 O13.2 N7.3 P2 S0.4 F0.9",
   ntheo = 12
 )

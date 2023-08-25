@@ -54,7 +54,6 @@ annotate_scan_targeted<-function(scan_processed_aggregated, formula_flp = "C192H
       if (length(inds)>=2){ # At least 2 peaks in the envelop
         envelop = scan_processed_aggregated[inds,]
         results = annotate_envelop(envelop, transformation_list, IFL, ntheo = ntheo, baseline = baseline, min_overlap = min_overlap, max_mmw_ppm = max_mmw_ppm)
-        
         scan_annotated = rbind.data.frame(scan_annotated,results$envelop.annotated)
         features_annotated = rbind.data.frame(features_annotated, results$features.annotated)
       }
@@ -74,7 +73,7 @@ annotate_scan_targeted<-function(scan_processed_aggregated, formula_flp = "C192H
       }
     }
     
-    valid = which(features_annotated$SCORE<=max_msigma & features_annotated$OC>= min_overlap & features_annotated$EXP_MMW_PPM<=max_mmw_ppm)
+    valid = which(features_annotated$SCORE<=max_msigma & features_annotated$OC>= min_overlap)
     features_annotated = features_annotated[valid,,drop=FALSE]
   }
   
@@ -112,10 +111,10 @@ annotate_envelop<-function(envelop, ref_trans, IFL, ntheo, baseline, min_overlap
   kt = c()
   for (k in 1:nrow(ref_trans)){
     dev_mass = abs(ref_trans$AVG.MW[k] - avg_envelop) 
-    if (dev_mass<=5){
+    if (dev_mass<=10){
         RLF = useBRAIN(ListFormula1(ref_trans$FORMULA[k]), nrPeaks = ntheo)
         matched_nm = intersect(round(RLF$masses), round(tmp_scan[,1])) # Quickly check matched nominal mass
-        if (length(matched_nm)>=ntheo*min_overlap){ # At least half of ntheo found
+        if ((ntheo>6 & length(matched_nm)>= ntheo*min_overlap) || (ntheo<=6 & length(matched_nm)>= 3)){
           kt = c(kt,length(matched_nm))
           valid = c(valid, k)
           avg_dev = c(avg_dev, dev_mass)
@@ -127,6 +126,7 @@ annotate_envelop<-function(envelop, ref_trans, IFL, ntheo, baseline, min_overlap
     tnd = which(!duplicated(formula_valid))
     avg_dev = avg_dev[tnd]
     valid = valid[tnd]
+    kt = kt[tnd]
   }
 
   # Only 1 possibility
@@ -151,14 +151,16 @@ annotate_envelop<-function(envelop, ref_trans, IFL, ntheo, baseline, min_overlap
     tmp_scan1[,1] = tmp_scan1[,1] - 1.00726
     
     colnames(tmp_scan1) = c("mz", "intensity")
+    
     ifl1 = IFL[[valid[1]]]
     ifl2 = IFL[[valid[2]]]
     
     theo_isotope1 <- useBRAIN(aC = ifl1, nrPeaks = ntheo)
     theo_isotope2 <- useBRAIN(aC = ifl2, nrPeaks = ntheo)
     
-    abs_dev = max_mmw_ppm/1000000*median(tmp_scan[,1])
-    
+    #abs_dev = max_mmw_ppm/1000000*median(tmp_scan[,1])
+    abs_dev = 0.2
+  
     optim <- try(deconvolution1(scan_df = tmp_scan1,
                         theor_ID_cmpd1 = theo_isotope1,
                         theor_ID_cmpd2 = theo_isotope2,
@@ -182,7 +184,7 @@ annotate_envelop<-function(envelop, ref_trans, IFL, ntheo, baseline, min_overlap
         coef1 = 1
         coef2 = 0
       }}
-    
+
     if (coef1>0 & coef2>0){
       mSigma = calcul_mix_mSigma(tmp_scan, theo_isotope1, theo_isotope2, coef1, coef2, ntheo, max_mmw_ppm, baseline)
     }
@@ -203,7 +205,7 @@ annotate_envelop<-function(envelop, ref_trans, IFL, ntheo, baseline, min_overlap
   if (!is.null(mSigma)){
     if (!is.na(mSigma$score) & nrow(mSigma$exp_sp)>0){
      if (mSigma$score>0){
-      if (!("score1" %in% names(mSigma)) & !is.null(mSigma$mono_mass)){
+      if (!("score1" %in% names(mSigma)) & !is.null(mSigma$mono_mass)){ # not a mixture
         coef1 = 1
         coef2 = 0
         inds = match(mSigma$exp_sp[,1], sd1$MW)
@@ -333,7 +335,8 @@ calcul_imp_mSigma <- function(sp_deconvoluted, theo_isotope, ntheo, max_mmw_ppm,
   em_list = rep(1, NT) # Dalton error from matched isotope
   res_list = rep(baseline/2, NT) # Response list from matched isotope
   exp_list = rep(0, NT) # Experimental mass, one-to-one matched to theoritical
-  abs_dev = max_mmw_ppm/1000000*median(sp_deconvoluted[,1])
+  #abs_dev = max_mmw_ppm/1000000*median(sp_deconvoluted[,1])
+  abs_dev = 0.1
   
   for (j in 1:NT){
     errors = abs(sp_deconvoluted$MW - theo_deconvoluted$MW[j])
@@ -364,7 +367,7 @@ calcul_imp_mSigma <- function(sp_deconvoluted, theo_isotope, ntheo, max_mmw_ppm,
   res_list = res_list/sum(res_list)
   theo_list = theo_list/sum(theo_list)
   
-  chi_squa_score = sum(abs(res_list-theo_list)/theo_list)/NT
+  chi_squa_score = sum(abs(res_list[idx]-theo_list[idx])/theo_list[idx])/length(idx)
   
   # Compute evaluations:
     
@@ -432,10 +435,14 @@ calcul_mix_mSigma <- function(sp_deconvoluted, theo_isotope1, theo_isotope2, coe
   em_list1 = rep(1, NT1) # Dalton error from matched isotope
   em_list2 = rep(1, NT2)
   em_list = rep(1, NT)
-  res_list1 = exp_list1 = rep(baseline/2, NT1) # Response list from matched isotope
-  res_list2 = exp_list2 = rep(baseline/2, NT2) # Experimental mass
-  res_list = exp_list = rep(baseline/2, NT)
-  abs_dev = max_mmw_ppm/1000000*median(sp_deconvoluted[,1])
+  res_list1 = rep(baseline/2, NT1) # Response list from matched isotope
+  exp_list1 = rep(0, NT1) 
+  res_list2 = rep(baseline/2, NT2) # Experimental mass
+  exp_list2 = rep(0, NT2)
+  res_list  = rep(baseline/2, NT)
+  exp_list = rep(0, NT)
+  
+  abs_dev = 0.2 # This one is set pretty high because the "theoretical mixture" is uncertain
 
   for (j in 1:NT1){
     errors = abs(sp_deconvoluted$MW - theo_deconvoluted1$MW[j])
@@ -478,27 +485,10 @@ calcul_mix_mSigma <- function(sp_deconvoluted, theo_isotope1, theo_isotope2, coe
   idx1 = which(res_list1>baseline)
   idx2 = which(res_list2>baseline)
   idx = which(res_list>baseline)
-  
- # oc1_1 = sum(res_list1[idx1])/sum(sp_deconvoluted[,2]) # Unnormalized
- # oc1_2 = sum(theo_list1[idx1])/sum(theo_list1)
-  #oc1_1 = length(idx1)/nrow(sp_deconvoluted)
-  oc1_2 =  length(idx1)/NT1
-  #oc_score1 = 2*(oc1_1*oc1_2)/(oc1_1+oc1_2)
-  oc_score1 = oc1_2
-  
- # oc2_1 = sum(res_list2[idx2])/sum(sp_deconvoluted[,2]) # Unnormalized
- # oc2_2 = sum(theo_list2[idx2])/sum(theo_list2)
-  #oc2_1 = length(idx2)/nrow(sp_deconvoluted)
-  oc2_2 =  length(idx2)/NT2
- # oc_score2 = 2*(oc2_1*oc2_2)/(oc2_1+oc2_2)
-  oc_score2 = oc2_2
-  
-  #oc_1 = sum(res_list[idx])/sum(sp_deconvoluted[,2]) # Unnormalized
-  #oc_2 = sum(theo_list[idx])/sum(theo_list)
-  #oc_1 = length(idx)/nrow(sp_deconvoluted)
-  oc_2 =  length(idx)/NT
-  #oc_score = 2*(oc_1*oc_2)/(oc_1+oc_2)
-  oc_score = oc_2
+
+  oc_score1 =  length(idx1)/NT1
+  oc_score2 =  length(idx2)/NT2
+  oc_score =  length(idx)/NT
   
   res_list1 = res_list1/sum(res_list1)
   res_list2 = res_list2/sum(res_list2)
@@ -508,30 +498,28 @@ calcul_mix_mSigma <- function(sp_deconvoluted, theo_isotope1, theo_isotope2, coe
   theo_list2 = theo_list2/sum(theo_list2)
   theo_list = theo_list/sum(theo_list)
   
-  chi_squa_score1 = sum(abs(res_list1-theo_list1)/theo_list1)/NT1
-  chi_squa_score2 = sum(abs(res_list2-theo_list2)/theo_list2)/NT2
-  chi_squa_score = sum(abs(res_list-theo_list)/theo_list)/NT
+  chi_squa_score1 = sum(abs(res_list1[idx1]-theo_list1[idx1])/theo_list1[idx1])/length(idx1)
+  chi_squa_score2 = sum(abs(res_list2[idx2]-theo_list2[idx2])/theo_list2[idx2])/length(idx2)
+  chi_squa_score = sum(abs(res_list[idx]-theo_list[idx])/theo_list[idx])/length(idx)
   
   # Compute deviations:
   
   mono_mass1 = 0
   mono_ppm_dev1 = -1
-  if (min(idx1)==1){
+  if (length(idx1)>0){
+    if (min(idx1)==1){
      # Monoisotopic detected
     mono_mass1 = exp_list1[1]
     mono_ppm_dev1 = abs(em_list1[1])/tmw1*1000000
-  }
+  }}
   
   mono_mass2 = 0
   mono_ppm_dev2 = -1
+  if (length(idx2)>0){
   if (min(idx2)==1){ # Monoisotopic detected
       mono_mass2 = exp_list2[1]
       mono_ppm_dev2 = abs(em_list2[1])/tmw2*1000000
-  }
-
-  #avg_mass1 = sum(exp_list1[idx1]*res_list1[idx1]/sum(res_list1[idx1])) # Average molecular weight measured
-  #avg_mass2 = sum(exp_list2[idx2]*res_list2[idx2]/sum(res_list2[idx2]))
-  #avg_mass = sum(exp_list[idx]*res_list[idx]/sum(res_list[idx])) 
+  }}
   
   avg_mass1 = sum(exp_list1[idx1]*theo_list1[idx1]/sum(theo_list1[idx1])) # Average molecular weight measured
   avg_mass2 = sum(exp_list2[idx2]*theo_list2[idx2]/sum(theo_list2[idx2]))
@@ -545,7 +533,7 @@ calcul_mix_mSigma <- function(sp_deconvoluted, theo_isotope1, theo_isotope2, coe
   avg_mass_dev2 = abs(avg_mass2 - taw_bis2) 
   avg_mass_dev = abs(avg_mass - taw_bis) 
   
-  if (avg_mass1>0 & avg_mass2>0){
+  if (avg_mass1>0 || avg_mass2>0){
     return(list(score1 = chi_squa_score1, score2 = chi_squa_score2, score = chi_squa_score,
         oc_score1 = oc_score1, oc_score2 = oc_score2, oc_score = oc_score,
         mono_mass_ref1 = tmw1, avg_mass_ref1 = taw_bis1, mono_mass1 =  mono_mass1, avg_mass1 = avg_mass1,
@@ -601,6 +589,7 @@ expand_transformation_list<-function(formula_flp, transformation_list, mdb){
     transformation_list$Delta.MONO.MW = transformation_list$MONO.MW - mmwFLP
     transformation_list = data.frame(transformation_list)
   }
+
   return(list(IFL = IFL, transformation_list = transformation_list))
 }
 

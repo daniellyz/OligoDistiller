@@ -6,6 +6,7 @@
 \usage{
 annotate_scan_mix(
   scan_processed_aggregated,
+  MSMS = F,
   ntheo = 10,
   formula_flp = "C192H239O117N73P18S4F8",
   cpd_flp = "Demo A",

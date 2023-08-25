@@ -2,12 +2,12 @@
 % Please edit documentation in R/predict_esi_frag.R
 \name{predict_esi_frag}
 \alias{predict_esi_frag}
-\title{Prediction ESI fragments}
+\title{Prediction of ESI fragments second function}
 \usage{
 predict_esi_frag(test_seq = "OH-Ad-Ad-Ad-Ad-Ad-Ad-OH")
 }
 \description{
-The function creates fragment ions for a sequence given
+The function creates fragment ions for a sequence given with additional base loses and internal fragments
 }
 \author{
 Youzhong Liu, \email{YLiu186@ITS.JNJ.com}

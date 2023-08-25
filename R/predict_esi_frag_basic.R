@@ -1,13 +1,13 @@
-#' Prediction of ESI fragments second function
+#' Prediction ESI fragments first function
 #'
-#' The function creates fragment ions for a sequence given with additional base loses and internal fragments
+#' The function creates fragment ions for a sequence given
 #' 
 #' @author Youzhong Liu, \email{YLiu186@ITS.JNJ.com}
 #' 
 #' @importFrom OrgMassSpecR MonoisotopicMass
 #' @export
 
-predict_esi_frag<-function(test_seq = "OH-Ad-Ad-Ad-Ad-Ad-Ad-OH"){
+predict_esi_frag_basic<-function(test_seq = "OH-Ad-Ad-Ad-Ad-Ad-Ad-OH"){
   
   # Symbols of subunits
   
@@ -31,9 +31,9 @@ predict_esi_frag<-function(test_seq = "OH-Ad-Ad-Ad-Ad-Ad-Ad-OH"){
   
   test_seq = units[2:(length(units)-1)]  # Sequence without heads
   NT = length(test_seq)
+  
   vvv = match(test_seq, ref_unit2$alias)
   if (NA %in% vvv){stop("Unknown unit detected!")}
-  if (NT<3){stop("Three units at least!")}
   tmp_ref = ref_unit2[vvv,,drop=FALSE]
   
   tmp_P2 = rep(0, length(ustart))
@@ -41,7 +41,7 @@ predict_esi_frag<-function(test_seq = "OH-Ad-Ad-Ad-Ad-Ad-Ad-OH"){
   flp = Reduce("+", sugar2[vvv]) + Reduce("+", base2[vvv]) + ustart + uend + tmp_P2
   flp = flp - water*(NT-1) - 2*oh 
   flp_formula = generate_formula(flp)
- 
+  
   # Generate formula:
   
   fragment_ions_labels = c("FLP")
@@ -67,25 +67,13 @@ predict_esi_frag<-function(test_seq = "OH-Ad-Ad-Ad-Ad-Ad-Ad-OH"){
     blf = alf + water
     bf = generate_formula(blf)
     
-    bBl = paste0("bB", i)
-    bBlf = blf - base2[[vvv[i]]]
-    bBf = generate_formula(bBlf)
-    
     cl = paste0("c", i)
     clf = blf + PO2 - proton
     cf = generate_formula(clf)
     
-    cBl = paste0("cB", i)
-    cBlf = clf - base2[[vvv[i]]]
-    cBf = generate_formula(cBlf)
-    
     dl = paste0("d", i)
     dlf = clf + water
     df = generate_formula(dlf)
-    
-    dBl = paste0("dB", i)
-    dBlf = dlf - base2[[vvv[i]]]
-    dBf = generate_formula(dBlf)
     
     wl = paste0("w", NT - i)
     wf = generate_formula(flp - alf)
@@ -100,34 +88,10 @@ predict_esi_frag<-function(test_seq = "OH-Ad-Ad-Ad-Ad-Ad-Ad-OH"){
     zf = generate_formula(flp - dlf)
     
     fragment_ions_labels = c(fragment_ions_labels, al, bl, cl, dl, 
-                             aBl, bBl, cBl, dBl, wl, xl, yl, zl)
+                             aBl, wl, xl, yl, zl)
     
     fragment_formula = c(fragment_formula, af, bf, cf, df, 
-                         aBf, bBf, cBf, dBf, wf, xf, yf, zf)
-  }
-  
-  # Internal fragment:
-  
-  # w_w/a,ions:
-  
-  for (j in (NT-1):2){
-    
-    idx = which(fragment_ions_labels == paste0("w", j))
-    fx = unlist(ListFormula1(fragment_formula[idx]))
-        
-    for (k in (j-1):1){
-      
-      idy = which(fragment_ions_labels == paste0("w", k))
-
-      wa = paste0("w", j, "-", "a", NT-k)
-
-      fy = unlist(ListFormula1(fragment_formula[idy]))
-
-      itf = generate_formula(fx - fy + c(0, 2, rep(0,14)))
-
-      fragment_ions_labels = c(fragment_ions_labels, wa)
-      fragment_formula = c(fragment_formula, itf)
-    }
+                         aBf, wf, xf, yf, zf)
   }
   
   # Create formula table:

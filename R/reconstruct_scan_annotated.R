@@ -7,9 +7,9 @@
 #' @importFrom BRAIN useBRAIN
 #' @importFrom stringr str_detect str_replace_all
 #' @export
-#' 
+
 reconstruct_scan_annotated<-function(scan0, scans.deconvoluted.annotated, polarity = "Negative",
-                  mode = c("targeted","untargeted", "mixed"), mz_error = 0.01, bblock = "C21 H26.4 O13.2 N7.3 P2 S0.4 F0.9", ntheo = 12){
+      mode = c("targeted","untargeted", "mixed"), mz_error = 0.01, input_charges = 5:12, bblock = "C21 H26.4 O13.2 N7.3 P2 S0.4 F0.9", ntheo = 12){
   
   raw_scan = data.frame(scan0)
   raw_scan$labels = ""
@@ -22,10 +22,11 @@ reconstruct_scan_annotated<-function(scan0, scans.deconvoluted.annotated, polari
   reconstructed_int = c()
   reconstructed_label = c()
   reconstructed_z = c()
+  residual_scan = c()
   
   Features1 = features1$FEATURE
   NF =  length(Features1)
-    
+  
   for (f in 1:NF){
     
     # Theoretical distribution:
@@ -36,13 +37,13 @@ reconstruct_scan_annotated<-function(scan0, scans.deconvoluted.annotated, polari
       
       valid = which(str_detect(tmp_scan1_cpd,  tmp_feature_label))
       formula1 = features1$FORMULA[f]
-      theo_list = BRAIN::useBRAIN(ListFormula1(formula1))
+      theo_list = BRAIN::useBRAIN(ListFormula1(formula1), nrPeaks =  ntheo)
     } 
     if (mode == "untargeted"){
       valid = which(scan1$FEATURE == Features1[f])
       mmw =  features1$EXP_MMW[f]
       if (bblock %in% c("DNA", "RNA")){
-        theo_list <- brain_from_pointless(type = bblock, mmw, ntheo)
+        theo_list <- brain_from_pointless1(type = bblock, mmw, ntheo)
       } else {
         theo_list <- brain_from_bblock(bblock, mmw, ntheo)
       }
@@ -54,12 +55,12 @@ reconstruct_scan_annotated<-function(scan0, scans.deconvoluted.annotated, polari
         valid = which(str_detect(tmp_scan1_cpd,  tmp_feature_label))
         if (length(valid)>0){ # If is a known impurity
           formula1 = features1$FORMULA[f] 
-          theo_list = BRAIN::useBRAIN(ListFormula1(formula1))
+          theo_list = BRAIN::useBRAIN(ListFormula1(formula1), nrPeaks =  ntheo)
         } else {
           valid = which(scan1$FEATURE == Features1[f])
           mmw =  features1$EXP_MMW[f]
           if (bblock %in% c("DNA", "RNA")){
-            theo_list <- brain_from_pointless(type = bblock, mmw, ntheo)
+            theo_list <- brain_from_pointless1(type = bblock, mmw, ntheo)
           } else {
             theo_list <- brain_from_bblock(bblock, mmw, ntheo)
           }
@@ -67,13 +68,14 @@ reconstruct_scan_annotated<-function(scan0, scans.deconvoluted.annotated, polari
     }
   
     theo_relative_int =  theo_list$isoDistr/sum(theo_list$isoDistr) # Normalize to sum
-    
+
   # Charge summary:
     
-    ftr = scan1[valid,,drop=FALSE]
-    charges = strsplit(paste0(ftr$z, collapse = ":"),":")[[1]]
-    charges = sort(as.numeric(unique(charges)))
-    
+    #ftr = scan1[valid,,drop=FALSE]
+    #charges = strsplit(paste0(ftr$z, collapse = ":"),":")[[1]]
+    #charges = sort(as.numeric(unique(charges)))
+    charges = input_charges
+
   # Calculate theoretical m/z at different charge states:
       
     if (polarity == "Negative"){
@@ -102,8 +104,10 @@ reconstruct_scan_annotated<-function(scan0, scans.deconvoluted.annotated, polari
       
         if (polarity == "Negative"){theo_all_mz = (theo_list$masses - 1.00726*charges[m])/charges[m]}
         if (polarity == "Positive"){theo_all_mz = (theo_list$masses + 1.00726*charges[m])/charges[m]}
+        
         reconstructed_mz = c(reconstructed_mz, theo_all_mz)
         reconstructed_int = c(reconstructed_int, theo_all_int)
+        
         tmp_labels = tmp_z = rep("", length(theo_all_mz))
         
         tmp_labels[1] = Features1[f]
@@ -111,15 +115,27 @@ reconstruct_scan_annotated<-function(scan0, scans.deconvoluted.annotated, polari
         reconstructed_label = c(reconstructed_label, tmp_labels)
         reconstructed_z = c(reconstructed_z, tmp_z)
       }
-    }}
+    }
+  }
     
   reconstructed_scan = cbind.data.frame(mz = reconstructed_mz, int = reconstructed_int, 
                         labels = reconstructed_label, z = reconstructed_z)
   reconstructed_scan = reconstructed_scan[order(reconstructed_scan$mz),]
+  
+  # Find residual scan:
+  
+  for (r in 1:nrow(raw_scan)){
+    errors = abs(as.numeric(raw_scan[r,1]) - as.numeric(reconstructed_scan[,1]))    
+    if (min(errors)>mz_error){ 
+        residual_scan = rbind.data.frame(residual_scan, raw_scan[r,1:2])
+    }
+  }
 
   colnames(reconstructed_scan) = colnames(raw_scan)
+  colnames(residual_scan) = colnames(raw_scan)[1:2]
 
-  return(list(original_scan = raw_scan, reconstructed_scan = reconstructed_scan))
+  return(list(original_scan = raw_scan, reconstructed_scan = reconstructed_scan,
+              residual_scan = residual_scan))
 }
 
 ####################################################
@@ -152,7 +168,7 @@ brain_from_bblock<-function(bblock, MW0, ntheo = 12){
 ### Estimate isotope shape using pointness for DNA ###
 ######################################################
 
-brain_from_pointless <- function(type, mass, ntheo = 12) {
+brain_from_pointless1 <- function(type, mass, ntheo = 12) {
   
   nbPeaks = ntheo
   
@@ -169,48 +185,103 @@ brain_from_pointless <- function(type, mass, ntheo = 12) {
   }
   
   index <- model$range[1] <= mass & mass <= model$range[2]
-  if (!index) stop("The supplied mass falls beyond the range of the predictive model; the isotope distribution cannot be predicted.")
-  
-  nbIso <- dim(model$poly_coefs)[2]
-  nbPoly <- dim(model$poly_coefs)[1] - 1
-  
-  if (nbIso < nbPeaks | nbPeaks < 1) {
-    warning(paste0("Maximum number of isotope peaks is limitted to ", nbIso, "and should be larger than 0. We proceed with the default value."))
-    nbPeaks <- nbIso
-  }
-  # standardize mass covariate
-  z <- (mass - model$mu) / model$sigma
-  
-  # predict ALR
-  mass_mat <- matrix(rep(z, each = nbPoly + 1), ncol = nbPoly + 1, byrow = TRUE)
-  mass_mat <- t(apply(mass_mat, 1, function(x) "^"(x, 0:nbPoly)))
-  q_ALR_hat <- mass_mat %*% model$poly_coefs
-  q_ALR_hat <- unname(q_ALR_hat)
-  
-  # perform anti-ALR via softmax with one added to vector
-  tmp <- cbind(1, exp(q_ALR_hat))
-  rs <- rowSums(tmp)
-  q_hat <- t(apply(cbind(rs, tmp), 1, function(x) x[-1] / x[1]))
-  
-  # compute masses
-  m_hat <- mass + matrix(rep(model$mass_shift, L), nrow = L, ncol = nbIso, byrow = TRUE)
-  
-  # avg_mass
-  avg_mass <- sum(m_hat[1,] * q_hat[1,-ncol(q_hat)])/sum(q_hat[1,-ncol(q_hat)])
-  
-  # restrict the result to the specified number of isotope peaks
-  m_hat <- m_hat[, 1:nbPeaks]
-  q_hat <- q_hat[, 1:nbPeaks]
-  
-  return(list(isoDistr = q_hat, 
-              masses = m_hat, 
-              monoisotopicMass = m_hat[1],
-              avgMass = avg_mass))
-}
+  if (!index) {
+    #("The supplied mass falls beyond the range of the predictive model; the isotope distribution cannot be predicted.")
+    output = brain_from_bblock("C29 H36 N11.5 O20.3 P3", mass, ntheo = nbPeaks)
+    return(output)
+  } else {
+    
+    nbIso <- dim(model$poly_coefs)[2]
+    nbPoly <- dim(model$poly_coefs)[1] - 1
+    
+    if (nbIso < nbPeaks | nbPeaks < 1) {
+      warning(paste0("Maximum number of isotope peaks is limitted to ", nbIso, "and should be larger than 0. We proceed with the default value."))
+      nbPeaks <- nbIso
+    }
+    # standardize mass covariate
+    z <- (mass - model$mu) / model$sigma
+    
+    # predict ALR
+    mass_mat <- matrix(rep(z, each = nbPoly + 1), ncol = nbPoly + 1, byrow = TRUE)
+    mass_mat <- t(apply(mass_mat, 1, function(x) "^"(x, 0:nbPoly)))
+    q_ALR_hat <- mass_mat %*% model$poly_coefs
+    q_ALR_hat <- unname(q_ALR_hat)
+    
+    # perform anti-ALR via softmax with one added to vector
+    tmp <- cbind(1, exp(q_ALR_hat))
+    rs <- rowSums(tmp)
+    q_hat <- t(apply(cbind(rs, tmp), 1, function(x) x[-1] / x[1]))
+    
+    # compute masses
+    m_hat <- mass + matrix(rep(model$mass_shift, L), nrow = L, ncol = nbIso, byrow = TRUE)
+    
+    # avg_mass
+    avg_mass <- sum(m_hat[1,] * q_hat[1,-ncol(q_hat)])/sum(q_hat[1,-ncol(q_hat)])
+    
+    # restrict the result to the specified number of isotope peaks
+    m_hat <- m_hat[, 1:nbPeaks]
+    q_hat <- q_hat[, 1:nbPeaks]
+    
+    return(list(isoDistr = q_hat, 
+                masses = m_hat, 
+                monoisotopicMass = m_hat[1],
+                avgMass = avg_mass))
+  }}
+
 
 #######################
 ##Additional functions#
 #######################
+
+ListFormula1 <- function(elemental.formula){
+  chr <- gregexpr("[[:upper:]][[:lower:]]{0,1}", elemental.formula)
+  for (i in 1:length(chr[[1]])) {
+    y <- attr(chr[[1]], which = "match.length")[i]
+    z <- substr(elemental.formula, chr[[1]][i], chr[[1]][i] +
+                  y - 1)
+    if (!(z == "C" | z == "H" | z == "N" |
+          z == "O" | z == "S" | z == "P" |
+          z == "Br" | z == "Cl" | z == "F" |
+          z == "I" | z == "Si" | z == "Sn" | 
+          z == "B" | z == "Na" | z== "K" | z== "Fe"))
+      stop(paste("Elemental formula", elemental.formula,
+                 "contains element not of C,H,N,O,S,P,Br,Cl,F,I,Si,Sn,B,Fe, Na,K."))
+  }
+  GetAtoms <- function(elemental.formula, element) {
+    reg.exp <- paste(element, "[[:digit:]]*(?![[:lower:]])",
+                     sep = "")
+    #reg.exp <- paste(element, "[[:digit:]]+\\.*[[:digit:]]*(?![[:lower:]])",
+    #                 sep = "")
+    x <- gregexpr(reg.exp, elemental.formula, perl = TRUE)
+    if (x[[1]][1] != -1) {
+      n <- vector(mode = "numeric", length = length(x[[1]]))
+      for (i in 1:length(x[[1]])) {
+        y <- attr(x[[1]], which = "match.length")[i]
+        z <- substr(elemental.formula, x[[1]][i], x[[1]][i] +
+                      y - 1)
+        number <- as.numeric(strsplit(z, split = element)[[1]][2])
+        if (is.na(number)) {
+          n[i] <- 1
+        }
+        else {
+          n[i] <- number
+        }
+        atoms <- sum(n)
+      }
+    }
+    else {
+      atoms <- 0
+    }
+    return(atoms)
+  }
+  elements <- c("C", "H", "N", "O",
+                "S", "P", "Br", "Cl", "F",
+                "I", "Si", "Sn", "B", "Na", "K", "Fe")
+  result <- as.list(sapply(elements, function(x) {
+    GetAtoms(elemental.formula, x)
+  }))
+  return(result)
+}
 
 ListFormula2 <- function(elemental.formula){
   chr <- gregexpr("[[:upper:]][[:lower:]]{0,1}", elemental.formula)

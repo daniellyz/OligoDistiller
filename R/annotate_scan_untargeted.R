@@ -214,7 +214,8 @@ calcul_imp_mSigma_unknown <- function(sp_deconvoluted, theo_isotope, ntheo, base
   em_list = rep(1, NT) # Dalton error from matched isotope
   res_list = rep(baseline/2, NT) # Response list from matched isotope
   exp_list = rep(0, NT) # Experimental mass
-  abs_dev = max_mmw_ppm/1000000*median(sp_deconvoluted[,1])
+  #abs_dev = max_mmw_ppm/1000000*median(sp_deconvoluted[,1])
+  abs_dev = 0.1
   
   for (j in 1:NT){
     errors = abs(sp_deconvoluted$MW - theo_deconvoluted$MW[j])
@@ -243,8 +244,8 @@ calcul_imp_mSigma_unknown <- function(sp_deconvoluted, theo_isotope, ntheo, base
     
   res_list = res_list/sum(res_list)
   theo_list = theo_list/sum(theo_list)
-  
-  chi_squa_score = sum(abs(res_list-theo_list)/theo_list)/NT
+
+  chi_squa_score = sum(abs(res_list[idx]-theo_list[idx])/theo_list[idx])/length(idx)
   if (is.null(chi_squa_score)){chi_squa_score = 100}
   
   # Compute evaluations:

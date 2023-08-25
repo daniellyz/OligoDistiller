@@ -80,6 +80,7 @@ process_scan<-function(test.scan, polarity = c("Positive", "Negative"),  MSMS = 
       if (nrow(scan_processed)>3){
         
         scan_processed_aggregated = process_aggregation(scan_processed)
+        scan_processed_aggregated = scan_processed_aggregated[scan_processed_aggregated$z>0,,drop=F]
         scan_processed_aggregated$Envelop = cut_mmw_list1(scan_processed_aggregated$MW, scan_processed_aggregated$Response, mw_gap, mw_window)$id
       
         scan_charged = scan_processed[order(scan_processed[,1]),]
@@ -126,7 +127,7 @@ process_scan_high_charge_bis<-function(scan1, ref_charge, mz_error){
     dist_mzl = data.matrix(dist(mzl))
     dist_mzl = dist_mzl[lower.tri(dist_mzl, diag = FALSE)]
     dev_charge = sapply(1:NC, function(x) abs(dist_mzl - ref_dis[x]))
-    tmp_matched = apply(dev_charge, 1, function(x) {ifelse(sum(x<=0.01)>0, 1, 0)})
+    tmp_matched = apply(dev_charge, 1, function(x) {ifelse(sum(x<=mz_error)>0, 1, 0)})
     charge_mz = ref_charge[as.matrix(apply(dev_charge, 1, which.min))]
     charge_mz = charge_mz*tmp_matched # Charge-indicating mass differences
     
@@ -159,8 +160,8 @@ process_scan_high_charge_bis<-function(scan1, ref_charge, mz_error){
           
           tc = tc + 1
           to_keep= which(!(charge_labels %in% to_check))
+          
           charge_labels = charge_labels[to_keep]
-
           charge_count = charge_count[to_keep]
           
           NCC = length(charge_labels)
@@ -198,16 +199,18 @@ process_scan_low_charge<-function(scan1, ref_charge, mz_error, baseline){
   
   # The function must be used after high mass determination
   
-  scan3 = c()
-  
   # Determine double charge
+  
+  scan3 = scan4 = scan1
+  scan3$z = 0
+  scan4$z = 0
   
   if (2 %in% ref_charge & nrow(scan1)>3){
     
     exp_mz = scan1[,1]
     dist_mz = data.matrix(dist(exp_mz))
     
-    tmp_inds = which(abs(dist_mz - 1/2)<=mz_error, arr.ind = T) # Return pairs of peaks
+    tmp_inds = which(abs(dist_mz - 1/2)<= mz_error, arr.ind = T) # Return pairs of peaks
     all_pairs = tmp_inds[tmp_inds[,1] - tmp_inds[,2]<0,,drop=FALSE]
     NP = nrow(all_pairs)
     
@@ -218,16 +221,15 @@ process_scan_low_charge<-function(scan1, ref_charge, mz_error, baseline){
         tmp_range = all_pairs[j,1]:all_pairs[j,2]
         
         Segment = scan1[tmp_range,,drop=FALSE]
-        SGR = Segment$Response[1]/Segment$Response[nrow(Segment)]
-        
+        SGR =  Segment$Response[1]/Segment$Response[nrow(Segment)]
+
         # Check shape
-        
-        if (SGR>1.1 & nrow(Segment)<6){
-          Segment = cbind.data.frame(Segment, z = 2)
-          scan3 = rbind.data.frame(scan3, Segment)
-        }
+
+        if (SGR>0.5 & nrow(Segment)<6){
+         scan3$z[all_pairs[j,1]] = scan3$z[all_pairs[j,2]] = 2
+        } 
       }
-      scan1 = scan1[!(scan1$Mass %in% scan3$Mass),,drop = FALSE]
+      #scan1 = scan1[!(scan1$Mass %in% scan3$Mass),,drop = FALSE]
     }
   }
   
@@ -251,27 +253,20 @@ process_scan_low_charge<-function(scan1, ref_charge, mz_error, baseline){
         Segment = scan1[tmp_range,,drop=FALSE]
         SGR = Segment$Response[1]/Segment$Response[nrow(Segment)]
         
-        # Check shape
-        
-        if (SGR>1.1 & nrow(Segment)<6){
-          Segment = cbind.data.frame(Segment, z = 1)
-          scan3 = rbind.data.frame(scan3, Segment)
-        }
-      }}
-    
-    scan3 = scan3[!duplicated(scan3$Mass),,drop=FALSE]
-    scan1 = scan1[!(scan1$Mass %in% scan3$Mass),,drop = FALSE]
-  }
+        if (SGR>0.5 & nrow(Segment)<6){
+          scan4$z[all_pairs[j,1]] = scan4$z[all_pairs[j,2]] = 1
+        } 
+      }
+  }}
   
   # Determine unknown charge
-  
-  if (1 %in% ref_charge & nrow(scan1)>1){
-    Segment = scan1[scan1$Response>baseline*10,,FALSE]
-    if (nrow(Segment)>0){
-      Segment = cbind.data.frame(Segment, z = 1)
-      scan3 = rbind.data.frame(scan3, Segment)
-      scan3 = scan3[!duplicated(scan3$Mass),,drop=FALSE]
-    }}
+
+  scan3$z1 = scan4$z
+  for (x in 1:nrow(scan3)){
+    if (scan3$z1[x] == 1){scan3$z[x] = 1}
+    if (scan3$z1[x] == 0 & scan3$z[x] == 0 & scan3$Response[x]>baseline*10) {scan3$z[x] = 1}
+  }
+  scan3 = scan3[, 1:3]
   
   return(scan3)
 }
@@ -367,8 +362,9 @@ cut_mmw_list1<-function(mwlist, intlist, mw_gap, mw_window){
     if (k>2){ratio_int0 =  intlist[k-1]/intlist[k-2]} else {ratio_int0 = 2}
     
     if ((mwlist[k] - best_mw > mw_window/2*1.1  & ratio_int>1.1 & ratio_int0>1.1) 
-        || (mwlist[k] - min_mw > mw_window*1.1  & ratio_int>1.1 & ratio_int0>1.1) 
-        || (mwlist[k] - max_mw >mw_gap*1.1)){
+        || (mwlist[k] - min_mw > mw_window*1.1  & ratio_int>1.1 & ratio_int0>1.1)
+        || (mwlist[k] - max_mw >mw_gap*1.1 & mwlist[k]>=1800)
+        || (mwlist[k] - max_mw >mw_gap*2.2 & mwlist[k]<1800)){
       mw_feature[t0:(k-1)] = f
       mw_avg[t0:(k-1)] = round(best_mw, 4)
       f = f + 1

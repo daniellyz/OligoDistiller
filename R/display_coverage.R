@@ -87,8 +87,8 @@ display_coverage<-function(scan.deconvoluted.annotated, seq, int.frag = F, retur
     geom_segment(data = subset(cleavage_data, site1 == "Cleavage Site left"), aes(x = position - 0.2, y = 0.017, xend = position + 0.5, yend = 0.017),  color = "red", linewidth = 1.2) +
     geom_segment(data = subset(cleavage_data, site2 == "Cleavage Site right"), aes(x = position + 0.5, y = -0.017, xend = position + 1.2, yend = -0.017),  color = "red", linewidth = 1.2) +
     geom_text(aes(label = nucleotide), vjust = 0, size  = 8, fontface='bold') +
-    geom_text(aes(x = position-0.05, y = 0.022,label = text_left), size  = 6) + 
-    geom_text(aes(x = position+1.05, y = -0.020,label = text_right), size  = 6) + 
+    geom_text(aes(x = position-0.05, y = 0.022,label = text_left), size  = 5) + 
+    geom_text(aes(x = position+1.05, y = -0.020,label = text_right), size  = 5) + 
     labs(title = "McLuckey product ions", x = "", y = "", size = 10) + #ylim(-0.025, 0.03) + 
     theme_minimal() + theme(panel.grid=element_blank(), axis.text.y = element_blank(), axis.text.x = element_blank(), legend.position="none", plot.title=element_text(size=30)) +   
     scale_x_continuous(expand = c(0.03, 0.03)) +  scale_y_continuous(expand = c(0.01, 0.01))}

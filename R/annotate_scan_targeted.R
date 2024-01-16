@@ -49,8 +49,11 @@ annotate_scan_targeted<-function(scan_processed_aggregated, formula_flp = "C192H
   
   if (!is.null(scan_processed_aggregated) & nrow(transformation_list)>0){
     EEE = max(as.numeric(scan_processed_aggregated$Envelop))
+    
     for (i in 1:EEE){
+      
       inds = which(scan_processed_aggregated$Envelop==i)
+      
       if (length(inds)>=2){ # At least 2 peaks in the envelop
         envelop = scan_processed_aggregated[inds,]
         results = annotate_envelop(envelop, transformation_list, IFL, ntheo = ntheo, baseline = baseline, min_overlap = min_overlap, max_mmw_ppm = max_mmw_ppm)

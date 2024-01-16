@@ -4,7 +4,12 @@
 \alias{display_coverage}
 \title{Display sequence coverage}
 \usage{
-display_coverage(scan.deconvoluted.annotated, seq, int.frag = F)
+display_coverage(
+  scan.deconvoluted.annotated,
+  seq,
+  int.frag = F,
+  return.plot = T
+)
 }
 \description{
 The function returns a ggplot of labelled fragments and internal fragments on an oligonucleotide sequence

@@ -2,7 +2,7 @@
 #'
 #' The function searches DNA/RNA-like isotope patterns from a deconvoluted oligonucleotide spectra. It provides the monoisotopic molecular weight, average, intensity and envelope likeness of all features detected. 
 #' 
-#' @author Youzhong Liu, \email{YLiu186@ITS.JNJ.com}
+#' @author Youzhong Liu, \email{liu-youzhong@hotmail.com}
 #' 
 #' @importFrom BRAIN useBRAIN
 #' @export

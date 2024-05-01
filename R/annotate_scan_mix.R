@@ -2,7 +2,10 @@
 #'
 #' The function first searches a complex deconvoluted oligonucleotide spectra against a user provided oligonucleotide impurity/metabolite database, annotating and scoring isotopic pattern matches. It then searches DNA/RNA-like isotope patterns from the rest of deconvoluted oligonucleotide spectra. It provides the monoisotopic molecular weight, average, intensity and envelope likeness of all features detected. 
 #' 
-#' @author Youzhong Liu, \email{YLiu186@ITS.JNJ.com}
+#' @author Youzhong Liu, \email{liu-youzhong@hotmail.com}
+#' 
+#' @param scan_processed_aggregated Data frame representing deconvoluted NMS with the true molecular weight scale. Output of the function process_scan.
+#' 
 #' 
 #' @importFrom plyr rbind.fill
 #' @importFrom BRAIN calculateAverageMass

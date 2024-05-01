@@ -2,18 +2,74 @@
 #'
 #' The function searches a complex deconvoluted oligonucleotide spectra against a user provided oligonucleotide impurity/metabolite database, annotating and scoring isotopic pattern matches. Alternatively, user can provide the FLP (full length product) formula and a list of bio or chemical transformations.
 #' 
-#' @author Youzhong Liu, \email{YLiu186@ITS.JNJ.com}
+#' @author Youzhong Liu, \email{liu-youzhong@hotmail.com}
+#' 
+#' @param scan_processed_aggregated Data frame representing deconvoluted NMS with the true molecular weight scale. Output of the function process_scan.
+#' @param formula_flp Character. Neutral elemental formula of the main compound (e.g. full length product). Used when a tranformation list from the main compound is defined. 
+#' @param cpd_flp Character. Name of the main compound. Used to label compounds in the output table. Use the separater & if you expect multiple main compound in your sample.
+#' @param transformation_list Data frame. Transformation list defining the mass and elemental formula difference from the main compound. Should contain following columns: ID, CPD (IDs and names of transformation products), Plus_Formula, Minus_Formula (Elemental formula difference), Delta.AVG.MW, Delta.MONO.MW (Mass difference for average and mono molecular weight)
+#' @param mdb Data frame. You can directly provide all expected compounds to be annotated from your mixture without defining FLP or compound names. 
+#' @param ntheo Ingeter. Estimated isotope envelop size in number of isotope peaks.
+#' @param min_overlap Double between 0 and 1. The minimum matching score between experimental and theoretical isotope envelops. 
+#' @param max_msigma  Double between 1 and 50. The maximum-allowed deviation between the shapes of experimental and theoretical isotope pattern. Should set higher for noisy data.
+#' @param max_mmw_ppm Double between 1 and 50. The maximum allowed ppm error between masses in the NMS and theoretical molecular weight of oligonucleotide features. Depend on experimental mass deviation and deconvolution bias. 
+#' @param baseline Numeric. Estimated baseline level (noise) of input spectrum. Depending on instrument and acquisition method. Baseline of MS/MS spectrum is 100 for most instruments. 
 #' 
 #' @importFrom BRAIN calculateAverageMass calculateMonoisotopicMass useBRAIN
 #' @importFrom OrgMassSpecR MolecularWeight
 #' @importFrom stringr str_remove str_trim
 #' 
+#' @examples
+#'
+#' \dontrun{ 
+#' 
+#' ## Example of MS1 data:
+#' 
+#' data("Strand_A")
+#' 
+#' scan.deconvoluted = process_scan(scan.A,
+#' polarity = "Negative", baseline = 1000, mz_error = 0.01, 
+#' min_charge = 3, max_charge = 12,
+#' min_mz = 500, max_mz = 1200, min_mw = 4000, max_mw = 10000,
+#' mw_gap = 1.1, mw_window = 10)
+#' SCAN_NMS = scan.deconvoluted$scan_processed_aggregated
+#' 
+#' data("TRANS") # Transformation list for potential oligonucleotide degradants
+#' 
+#' scan.deconvoluted.annotated = annotate_scan_targeted(SCAN_NMS, formula_flp = "C189H238O119N66P18S4F8", 
+#' cpd_flp = "Demo A", transformation_list = transformation_list, mdb = NULL, 
+#' ntheo = 10, min_overlap = 0.6, max_msigma = 5, max_mmw_ppm = 10, baseline = 1000)
+#' 
+#' head(scan.deconvoluted.annotated$feature)
+#' 
+#' ## Example of MS2 data:
+#' 
+#' data("Strand_B_MS2") 
+#' 
+#' scan.deconvoluted = process_scan(scan2_B, MSMS = T,
+#' polarity = "Negative", baseline = 100, mz_error = 0.02,
+#' min_charge = 1, max_charge = 10,
+#' min_mz = 500, max_mz = 1200, min_mw = 0, max_mw = 7000,
+#' mw_gap = 1.1, mw_window = 6)
+#' SCAN_NMS = scan.deconvoluted$scan_processed_aggregated
+#' 
+#' seq = "OH-Am*-Af*-Cm*-Af-Um-Uf-Gm-Af-Gm-Cf-Gm-Af-Um-Gf-Um-Cf-Cm-Am*-Cm-OH"
+#' mDB = predict_esi_frag(seq) # Prediction of product ions based on sequence
+#'
+#' scan.deconvoluted.annotated = annotate_scan_targeted(SCAN_NMS, formula_flp = "", 
+#' cpd_flp = "", transformation_list = NULL, mdb = mDB, 
+#' ntheo = 6, min_overlap = 0.4, max_msigma = 20, max_mmw_ppm = 10, baseline = 50)
+#' 
+#'}
+#'
 #' @export
 
-annotate_scan_targeted<-function(scan_processed_aggregated, formula_flp = "C192H239O117N73P18S4F8", cpd_flp = "Demo A", transformation_list = NULL, mdb = NULL, 
+annotate_scan_targeted<-function(scan_processed_aggregated = NULL, formula_flp = "C192H239O117N73P18S4F8", cpd_flp = "Demo A", transformation_list = NULL, mdb = NULL, 
                 ntheo = 12, min_overlap = 0.6, max_msigma = 3, max_mmw_ppm = 10, baseline = 1000){
   
   options(stringsAsFactors = F)
+  options(error = expression(NULL))
+  
   features_annotated = c()
   scan_annotated = c()
   

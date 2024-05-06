@@ -5,7 +5,7 @@
 \title{Converting multi-charged oligonucleotide mass spectra to true molecular weight scale}
 \usage{
 process_scan(
-  test.scan,
+  test.scan = NULL,
   polarity = c("Positive", "Negative"),
   MSMS = F,
   baseline = 100,
@@ -20,9 +20,54 @@ process_scan(
   mw_window = 10
 )
 }
+\arguments{
+\item{test.scan}{A two-column data frame, representing mass peak (m/z) and intensity of the input unprocessed spectrum.}
+
+\item{polarity}{Character. Either "Negative" or "Positive".}
+
+\item{MSMS}{Boolean. TRUE if the spectrum to be deconvoluted is a MS/MS spectrum.}
+
+\item{baseline}{Numeric. Estimated baseline level (noise) of input spectrum. Depending on instrument and acquisition method. Baseline of MS/MS spectrum is 100 for most instruments.}
+
+\item{min_charge}{Integer. Absolute minimum charge state of oligonucleotide species of interest in the spectrum. Should be at least 1.}
+
+\item{max_charge}{Integer. Absolute maximum charge state of oligonucleotide species of interest in the spectrum. Should be below 30 for our algorithm.}
+
+\item{mz_error}{Numeric. Estimated mass measurement error (Da).}
+
+\item{mw_gap}{Numeric. Estimated gap between closely-located oligonucleotide isotope envelops. The default value of 1.1 Da is adapted for most applications.}
+
+\item{mw_window}{Numeric. Estimated isotope envelop size (Da)}
+
+\item{min_mz/max_mz}{Numeric. Mass range of input spectrum to be deconvoluted. Zone with low spectrum quality should be excluded.}
+
+\item{min_mw/max_mw}{Numeric. Molecular weight range of output spectrum from deconvolution. Should cover compounds of interest. min_mw could be set as 0 for MS/MS spectra to cover small fragments.}
+}
+\value{
+\itemize{
+  \item{scan_processed:}{Data frame of input spectrum along with charge state and neutral molecular weight estimation for each mass peak. z = 0 on a mass peak in the output table means that the charge state cannot be confidently assigned by our algorithm either because of its low intensity or its potential charge state is outside the user-specified range}
+  \item{scan_processed_aggregated:}{Data frame representing NMS with the true molecular weight scale. NMS is obtained by aggregating multiple charge states of the same isotope peak. The mass of each peak in the NMS is the averaged NMW, and the intensity is the sum across all user-defined charge states. }
+}
+}
 \description{
 The function determines charges state based on peak spacing. It also creates a deconvoluted molecular weight spectra by combining multiple charge state of the same isotopic species.
 }
+\examples{
+
+\dontrun{ 
+
+data("Strand_A")
+
+scan.deconvoluted = process_scan(scan.A,
+polarity = "Negative", baseline = 1000, mz_error = 0.01, 
+min_charge = 3, max_charge = 12,
+min_mz = 500, max_mz = 1200, min_mw = 4000, max_mw = 10000,
+mw_gap = 1.1, mw_window = 10)
+
+head(scan.deconvoluted$scan_processed_aggregated)
+head(scan.deconvoluted$scan_processed)
+}
+}
 \author{
-Youzhong Liu, \email{YLiu186@ITS.JNJ.com}
+Youzhong Liu, \email{liu-youzhong@hotmail.com}
 }

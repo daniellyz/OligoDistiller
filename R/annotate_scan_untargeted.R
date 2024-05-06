@@ -4,9 +4,37 @@
 #' 
 #' @author Youzhong Liu, \email{liu-youzhong@hotmail.com}
 #' 
+#' @param scan_processed_aggregated Data frame representing deconvoluted NMS with the true molecular weight scale. Output of the function process_scan.
+#' @param bblock Character. Either "DNA" or "RNA". Should reflect the main nucleic acid composition of the strand. Used for monoisotopic peak prediction by Pointless algorithm. 
+#' @param ntheo Integer. Estimated isotope envelop size in number of isotope peaks.
+#' @param min_overlap Double between 0 and 1. The minimum matching score between experimental and theoretical isotope envelops (known compounds from database/transformation list or unknown predicted by Pointless). 
+#' @param max_msigma  Double between 1 and 50. The maximum-allowed deviation between the shapes of experimental and theoretical isotope pattern. Should set higher for noisy or MS/MS data.
+#' @param max_mmw_ppm Double between 1 and 50. The maximum allowed ppm error between masses in the NMS and theoretical molecular weight of oligonucleotide features. Depend on experimental mass deviation and deconvolution bias. 
+#' @param baseline Numeric. Estimated baseline level (noise) of input spectrum. Depending on instrument and acquisition method. Baseline of MS/MS spectrum is 100 for most instruments. 
+#'
+#'
 #' @importFrom BRAIN useBRAIN
 #' @export
+#' #' @examples
+#'
+#' \dontrun{ 
 #' 
+#' ## Example of MS1 data:
+#' 
+#' data("Strand_A")
+#' 
+#' scan.deconvoluted = process_scan(scan.A,
+#' polarity = "Negative", baseline = 1000, mz_error = 0.01, 
+#' min_charge = 3, max_charge = 12,
+#' min_mz = 500, max_mz = 1200, min_mw = 4000, max_mw = 10000,
+#' mw_gap = 1.1, mw_window = 10)
+#' SCAN_NMS = scan.deconvoluted$scan_processed_aggregated
+#' 
+#' scan.deconvoluted.annotated = annotate_scan_untargeted(SCAN_NMS, ntheo = 10,
+#' bblock = "RNA", min_overlap = 0.6, max_msigma = 5, max_mmw_ppm = 10, baseline = 1000)
+#' 
+#' head(scan.deconvoluted.annotated$feature)
+#' }
 
 annotate_scan_untargeted<-function(scan_processed_aggregated, bblock, ntheo = 12, 
           min_overlap = 0.6, max_msigma = 10, max_mmw_ppm = 10, baseline = 1000){

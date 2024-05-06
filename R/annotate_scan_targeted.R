@@ -5,11 +5,11 @@
 #' @author Youzhong Liu, \email{liu-youzhong@hotmail.com}
 #' 
 #' @param scan_processed_aggregated Data frame representing deconvoluted NMS with the true molecular weight scale. Output of the function process_scan.
-#' @param formula_flp Character. Neutral elemental formula of the main compound (e.g. full length product). Used when a tranformation list from the main compound is defined. 
-#' @param cpd_flp Character. Name of the main compound. Used to label compounds in the output table. Use the separater & if you expect multiple main compound in your sample.
+#' @param formula_flp Character. Neutral elemental formula of the main compound (e.g. full length product). Used when a transformation list from the main compound is defined. 
+#' @param cpd_flp Character. Name of the main compound. Used to label compounds in the output table. Use the separator & if you expect multiple main compound in your sample.
 #' @param transformation_list Data frame. Transformation list defining the mass and elemental formula difference from the main compound. Should contain following columns: ID, CPD (IDs and names of transformation products), Plus_Formula, Minus_Formula (Elemental formula difference), Delta.AVG.MW, Delta.MONO.MW (Mass difference for average and mono molecular weight)
 #' @param mdb Data frame. You can directly provide all expected compounds to be annotated from your mixture without defining FLP or compound names. 
-#' @param ntheo Ingeter. Estimated isotope envelop size in number of isotope peaks.
+#' @param ntheo Integer. Estimated isotope envelop size in number of isotope peaks.
 #' @param min_overlap Double between 0 and 1. The minimum matching score between experimental and theoretical isotope envelops. 
 #' @param max_msigma  Double between 1 and 50. The maximum-allowed deviation between the shapes of experimental and theoretical isotope pattern. Should set higher for noisy data.
 #' @param max_mmw_ppm Double between 1 and 50. The maximum allowed ppm error between masses in the NMS and theoretical molecular weight of oligonucleotide features. Depend on experimental mass deviation and deconvolution bias. 
@@ -18,6 +18,7 @@
 #' @importFrom BRAIN calculateAverageMass calculateMonoisotopicMass useBRAIN
 #' @importFrom OrgMassSpecR MolecularWeight
 #' @importFrom stringr str_remove str_trim
+#' @export
 #' 
 #' @examples
 #'
@@ -62,7 +63,6 @@
 #' 
 #'}
 #'
-#' @export
 
 annotate_scan_targeted<-function(scan_processed_aggregated = NULL, formula_flp = "C192H239O117N73P18S4F8", cpd_flp = "Demo A", transformation_list = NULL, mdb = NULL, 
                 ntheo = 12, min_overlap = 0.6, max_msigma = 3, max_mmw_ppm = 10, baseline = 1000){

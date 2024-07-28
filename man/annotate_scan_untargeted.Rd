@@ -32,6 +32,27 @@ annotate_scan_untargeted(
 \description{
 The function searches DNA/RNA-like isotope patterns from a deconvoluted oligonucleotide spectra. It provides the monoisotopic molecular weight, average, intensity and envelope likeness of all features detected.
 }
+\examples{
+
+\dontrun{ 
+
+## Example of MS1 data:
+
+data("Strand_A")
+
+scan.deconvoluted = process_scan(scan.A,
+polarity = "Negative", baseline = 1000, mz_error = 0.01, 
+min_charge = 3, max_charge = 12,
+min_mz = 500, max_mz = 1200, min_mw = 4000, max_mw = 10000,
+mw_gap = 1.1, mw_window = 10)
+SCAN_NMS = scan.deconvoluted$scan_processed_aggregated
+
+scan.deconvoluted.annotated = annotate_scan_untargeted(SCAN_NMS, ntheo = 10,
+bblock = "RNA", min_overlap = 0.6, max_msigma = 5, max_mmw_ppm = 10, baseline = 1000)
+
+head(scan.deconvoluted.annotated$feature)
+}
+}
 \author{
 Youzhong Liu, \email{liu-youzhong@hotmail.com}
 }

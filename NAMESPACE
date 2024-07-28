@@ -2,6 +2,7 @@
 
 export(annotate_scan_mix)
 export(annotate_scan_targeted)
+export(annotate_scan_untargeted)
 export(deconvolution1)
 export(display_coverage)
 export(predict_esi_frag)

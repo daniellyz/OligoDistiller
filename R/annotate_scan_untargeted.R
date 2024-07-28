@@ -15,7 +15,7 @@
 #'
 #' @importFrom BRAIN useBRAIN
 #' @export
-#' #' @examples
+#' @examples
 #'
 #' \dontrun{ 
 #' 
